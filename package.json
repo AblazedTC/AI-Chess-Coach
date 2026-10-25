@@ -1,0 +1,21 @@
+{
+  "name": "chess-review-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node qa/dev.mjs",
+    "test": "uv --directory backend run pytest && npm --prefix frontend run test -- --run",
+    "lint": "uv --directory backend run ruff check . && uv --directory backend run ruff format --check . && uv --directory backend run mypy app && npm --prefix frontend run lint && npm --prefix frontend run format:check && npm --prefix frontend run typecheck",
+    "build": "npm --prefix frontend run build",
+    "test:e2e": "playwright test --config qa/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.56.1",
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
