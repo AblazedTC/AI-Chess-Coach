@@ -90,15 +90,17 @@ class Jobs:
         return job.model_copy(deep=True)
 
     async def cancel(self, job_id: str) -> AnalysisJob:
-        job = self.get(job_id)
+        self.get(job_id)
+        job = self.jobs[job_id]
         if job.status not in TERMINAL:
-            self.jobs[job_id].status = "cancelled"
             task = self.tasks.get(job_id)
             if task is not None:
                 task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
-            self.finished[job_id] = time.monotonic()
-        return self.get(job_id)
+            job.status = "cancelled"
+            if job_id in self.jobs:
+                self.finished[job_id] = time.monotonic()
+        return job.model_copy(deep=True)
 
     async def close(self) -> None:
         tasks = list(self.tasks.values())

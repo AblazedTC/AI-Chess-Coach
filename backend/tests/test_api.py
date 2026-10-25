@@ -1,6 +1,8 @@
+import asyncio
 import time
 
 import chess
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -214,6 +216,69 @@ def test_cors(client: TestClient) -> None:
     )
     assert rejected.status_code == 400
     assert rejected.json()["error"]["code"] == "cors_rejected"
+    assert len(rejected.json()["request_id"]) == 32
+
+
+def test_oversized_request_error_is_readable_from_allowed_origin(client: TestClient) -> None:
+    response = client.post(
+        "/api/games/import",
+        content=b"x" * 300001,
+        headers={"Content-Type": "application/json", "Origin": "http://localhost:3000"},
+    )
+    assert response.status_code == 413
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert response.json()["request_id"] == response.headers["x-request-id"]
+
+
+async def test_concurrency_error_is_readable_from_allowed_origin(settings: Settings) -> None:
+    app = create_app(settings)
+    entered = 0
+    ready = asyncio.Event()
+    release = asyncio.Event()
+
+    @app.get("/hold")
+    async def hold() -> dict[str, str]:
+        nonlocal entered
+        entered += 1
+        if entered == 32:
+            ready.set()
+        await release.wait()
+        return {"status": "ok"}
+
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://test") as client,
+    ):
+        requests = [asyncio.create_task(client.get("/hold")) for _ in range(32)]
+        try:
+            await asyncio.wait_for(ready.wait(), timeout=5)
+            response = await client.get("/api/health", headers={"Origin": "http://localhost:3000"})
+            assert response.status_code == 429
+            assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+            assert response.json()["request_id"] == response.headers["x-request-id"]
+        finally:
+            release.set()
+            await asyncio.gather(*requests)
+
+
+def test_terminal_position_has_no_playable_suggestions(client: TestClient) -> None:
+    imported = client.post(
+        "/api/games/import",
+        json={"pgn": '[SetUp "1"]\n[FEN "8/8/8/8/8/8/2k5/K7 w - - 0 1"]\n\n*'},
+    )
+    assert imported.status_code == 200
+    game_id = imported.json()["id"]
+    response = client.post(
+        "/api/coach", json={"game_id": game_id, "ply": 0, "question": "What can I play?"}
+    )
+    assert response.status_code == 200
+    assert "terminal" in response.json()["message"]
+    assert response.json()["suggested_moves"] == []
+    practice = client.post("/api/practice", json={"game_id": game_id, "ply": 0, "moves": []})
+    assert practice.json()["is_game_over"]
+    assert practice.json()["legal_moves"] == []
+    analysis = client.post("/api/analysis/position", json={"game_id": game_id, "ply": 0})
+    assert analysis.json()["lines"] == []
 
 
 def test_unexpected_exception_sanitized(

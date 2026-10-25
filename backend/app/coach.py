@@ -111,7 +111,7 @@ class Coach:
         if board.is_game_over():
             facts.append(f"The board is terminal under automatic game rules: {board.result()}.")
         suggestions: list[SuggestedMove] = []
-        for line in analysis.lines:
+        for line in analysis.lines if not board.is_game_over() else []:
             if line.uci:
                 move = chess.Move.from_uci(line.uci[0])
                 suggestions.append(
