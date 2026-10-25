@@ -66,7 +66,7 @@ for (const viewport of [
       "aria-selected",
       "true",
     );
-    for (const name of ["Moves", "Engine", "Review", "Practice", "Insights"]) {
+    for (const name of ["Moves", "Review", "Practice", "Insights"]) {
       await expect(tabs.getByRole("tab", { name, exact: true })).toBeVisible();
     }
     const board = page.getByRole("group", { name: "Chess board", exact: true });
@@ -79,7 +79,7 @@ for (const viewport of [
     }
 
     await tabs.getByRole("tab", { name: "Review", exact: true }).click();
-    const review = page.locator(".tool-pane:visible");
+    const review = page.locator('[role="tabpanel"]:visible');
     await expect(review).toHaveCount(1);
     await expect(
       review.getByRole("region", { name: "Full-game analysis", exact: true }),
@@ -121,7 +121,7 @@ test("hidden Coach and Review remain mounted and retain a draft across tabs and 
   const game = await loadDemo(page, api);
   const tabs = page.getByRole("tablist", { name: "Analysis tools", exact: true });
   await tabs.getByRole("tab", { name: "Review", exact: true }).click();
-  const review = page.locator(".tool-pane:visible");
+  const review = page.locator('[role="tabpanel"]:visible');
   await review.evaluate((element) => element.setAttribute("data-layout-test", "review"));
   const retainedReview = page.locator('[data-layout-test="review"]');
   await tabs.getByRole("tab", { name: "Coach", exact: true }).click();
@@ -132,10 +132,10 @@ test("hidden Coach and Review remain mounted and retain a draft across tabs and 
   const retainedQuestion = page.locator('[data-layout-test="draft"]');
   const draft = "Keep this unsent question while I compare the analysis.";
   await question.fill(draft);
-  for (const name of ["Moves", "Engine", "Review", "Practice", "Insights"]) {
+  for (const name of ["Moves", "Review", "Practice", "Insights"]) {
     await tabs.getByRole("tab", { name, exact: true }).click();
     await page
-      .locator(".tool-pane:visible")
+      .locator('[role="tabpanel"]:visible')
       .evaluate((element, tool) => element.setAttribute("data-mounted-tool", tool), name);
     await expect(retainedQuestion).toBeAttached();
     await expect(retainedQuestion).toBeHidden();
@@ -147,6 +147,18 @@ test("hidden Coach and Review remain mounted and retain a draft across tabs and 
   await page.setViewportSize({ width: 360, height: 800 });
   await expect(page.locator(".study-grid")).toHaveAttribute("data-layout", "narrow");
   await expect(retainedQuestion).toHaveValue(draft);
+  const engine = tabs.getByRole("tab", { name: "Engine", exact: true });
+  await engine.click();
+  await expect(engine).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page
+      .locator('[role="tabpanel"]:visible')
+      .getByRole("region", { name: "Position analysis", exact: true }),
+  ).toBeVisible();
+  await expect(retainedQuestion).toBeAttached();
+  await expect(retainedQuestion).toBeHidden();
+  await expect(retainedQuestion).toHaveValue(draft);
+  await expect(retainedReview).toBeAttached();
   await tabs.getByRole("tab", { name: "Moves", exact: true }).click();
   await expect(retainedQuestion).toBeAttached();
   await expect(retainedQuestion).toBeHidden();
@@ -161,7 +173,7 @@ test("hidden Coach and Review remain mounted and retain a draft across tabs and 
   await expect(retainedQuestion).toBeVisible();
   await expect(retainedQuestion).toHaveValue(draft);
   await expect(retainedReview).toBeAttached();
-  for (const name of ["Moves", "Engine", "Review", "Practice", "Insights"]) {
+  for (const name of ["Moves", "Review", "Practice", "Insights"]) {
     const pane = page.locator(`[data-mounted-tool="${name}"]`);
     await expect(pane).toBeAttached();
     if (name !== "Moves") await expect(pane).toBeHidden();
@@ -180,10 +192,10 @@ test("tab keyboard navigation uses ArrowRight, Home and End without replay short
   await expectPosition(page, game, 1);
   const tabs = page.getByRole("tablist", { name: "Analysis tools", exact: true });
   const moves = tabs.getByRole("tab", { name: "Moves", exact: true });
-  const engine = tabs.getByRole("tab", { name: "Engine", exact: true });
+  const review = tabs.getByRole("tab", { name: "Review", exact: true });
   await moves.focus();
   await page.keyboard.press("ArrowRight");
-  await expect(engine).toBeFocused();
+  await expect(review).toBeFocused();
   await expectPosition(page, game, 1);
   await page.keyboard.press("End");
   await expect(tabs.getByRole("tab").last()).toBeFocused();
@@ -238,11 +250,11 @@ test("1440x600 permits document scrolling and keeps the short-screen content rea
   await loadDemo(page, api);
   await expect(page.locator(".study-grid")).toHaveAttribute("data-layout", "three");
   const tabs = page.getByRole("tablist", { name: "Analysis tools", exact: true });
-  for (const name of ["Moves", "Engine", "Review", "Practice", "Insights"]) {
+  for (const name of ["Moves", "Review", "Practice", "Insights"]) {
     const tab = tabs.getByRole("tab", { name, exact: true });
     await tab.click();
     await expect(tab).toHaveAttribute("aria-selected", "true");
-    const pane = page.locator(".tool-pane:visible");
+    const pane = page.locator('[role="tabpanel"]:visible');
     await pane.scrollIntoViewIfNeeded();
     await expect(pane).toBeInViewport();
   }
