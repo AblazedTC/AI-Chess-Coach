@@ -9,8 +9,8 @@ const child = spawn(
     "--kill-others",
     "--names",
     "backend,frontend",
-    "uv --directory backend run uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8100",
-    "npm --prefix frontend run dev -- --hostname 127.0.0.1 --port 3100",
+    "uv --directory backend run uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000",
+    "npm --prefix frontend run dev -- --hostname 127.0.0.1 --port 3000",
   ],
   {
     cwd: root,
@@ -21,7 +21,7 @@ const child = spawn(
       ENGINE_MODE: process.env.ENGINE_MODE ?? "demo",
       LLM_PROVIDER: process.env.LLM_PROVIDER ?? "deterministic",
       NEXT_PUBLIC_API_BASE_URL:
-        process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8100",
+        process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000",
     },
   },
 );
