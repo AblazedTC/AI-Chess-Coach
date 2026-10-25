@@ -39,8 +39,12 @@ test("custom PGN import renders the imported game rather than the demo", async (
   expect(imported.ok()).toBeTruthy();
   const game = await imported.json();
   await page.goto("/");
-  await page.getByLabel("PGN", { exact: true }).fill(samplePgn);
   await page.getByRole("button", { name: "Import PGN", exact: true }).click();
+  await page.getByLabel("PGN", { exact: true }).fill(samplePgn);
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Import PGN", exact: true })
+    .click();
   await expectPosition(page, game, 0);
   await page.getByRole("button", { name: "Next move", exact: true }).click();
   await expectPosition(page, game, 1);
@@ -52,9 +56,15 @@ test("invalid PGN shows an accessible error and preserves the loaded board", asy
   api,
 }) => {
   const game = await loadDemo(page, api);
-  await page.getByLabel("PGN", { exact: true }).fill("not a legal chess game");
   await page.getByRole("button", { name: "Import PGN", exact: true }).click();
+  await page.getByLabel("PGN", { exact: true }).fill("not a legal chess game");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Import PGN", exact: true })
+    .click();
   await expect(page.getByRole("alert")).toContainText(/pgn|invalid|moves/i);
+  await page.getByLabel("PGN", { exact: true }).press("Escape");
+  await expect(page.getByRole("dialog")).not.toBeVisible();
   await expectPosition(page, game, 0);
 });
 
@@ -183,7 +193,10 @@ test("keyboard navigation works without hijacking typing in form fields", async 
   await expectPosition(page, game, 1);
   await page.keyboard.press("ArrowLeft");
   await expectPosition(page, game, 0);
-  for (const label of ["PGN", "Ask a question"]) {
+  for (const label of ["Ask a question", "PGN"]) {
+    if (label === "PGN") {
+      await page.getByRole("button", { name: "Import PGN", exact: true }).click();
+    }
     const field = page.getByLabel(label, { exact: true });
     await field.fill("typed text");
     await field.press("ArrowRight");
@@ -191,6 +204,10 @@ test("keyboard navigation works without hijacking typing in form fields", async 
     await field.press("Home");
     await field.press("End");
     await expect(field).toHaveValue("typed text");
+    if (label === "PGN") {
+      await field.press("Escape");
+      await expect(page.getByRole("dialog")).not.toBeVisible();
+    }
     await expectPosition(page, game, 0);
   }
   await page.getByRole("button", { name: "Next move", exact: true }).focus();
