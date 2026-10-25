@@ -9,7 +9,7 @@ export function Library({ model, openImport }: { model: WorkspaceModel; openImpo
 
   return (
     <aside className="sidebar" aria-label="Game library">
-      <a className="brand" href="#main-content" aria-label="Chess Coach workspace">
+      <a className="brand" href="#main-content">
         <span className="brand-mark" aria-hidden="true">
           ♞
         </span>

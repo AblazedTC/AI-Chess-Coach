@@ -64,7 +64,7 @@ export function ImportDialog({
           onChange={(event) => setPgn(event.target.value)}
           placeholder={'[White "You"]\n[Black "Opponent"]\n[Result "*"]\n\n1. e4 e5 2. Nf3 Nc6 *'}
           required
-          maxLength={500000}
+          maxLength={250000}
           spellCheck={false}
           autoFocus
         />

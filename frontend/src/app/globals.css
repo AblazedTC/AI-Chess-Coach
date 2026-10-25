@@ -881,12 +881,24 @@ code {
   bottom: 6%;
   right: 7%;
 }
-.interactive-board .square:focus-visible {
+.square-button {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+.square-button:focus-visible {
   outline: 3px solid #253b1a;
   outline-offset: -4px;
   z-index: 3;
 }
-.interactive-board .square:disabled {
+.square-button:disabled {
   opacity: 1;
 }
 .square.selected-square {

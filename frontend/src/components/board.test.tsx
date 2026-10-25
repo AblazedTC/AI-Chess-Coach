@@ -8,6 +8,7 @@ describe("Board", () => {
     render(<Board fen={START_FEN} />);
     const board = screen.getByRole("group", { name: "Chess board" });
     expect(board).toHaveAttribute("data-fen", START_FEN);
+    expect(within(board).getAllByRole("img")).toHaveLength(64);
     expect(within(board).getByLabelText("e1, white king")).toBeInTheDocument();
     expect(within(board).getByLabelText("e8, black king")).toBeInTheDocument();
   });
@@ -43,5 +44,15 @@ describe("Board", () => {
   it("disables practice during requests", () => {
     render(<Board fen={START_FEN} legalMoves={["e2e4"]} onMove={vi.fn()} disabled />);
     expect(screen.getByRole("button", { name: "e2, white pawn" })).toBeDisabled();
+  });
+  it("keeps decorative rank and file text out of square accessible names", () => {
+    render(<Board fen={START_FEN} legalMoves={["a2a4"]} onMove={vi.fn()} />);
+    const square = screen.getByRole("button", { name: "a1, white rook" });
+    expect(square.querySelector(".rank-label, .file-label")).toBeNull();
+    const coordinates = square.parentElement?.querySelectorAll(".rank-label, .file-label");
+    expect(coordinates).toHaveLength(2);
+    for (const coordinate of coordinates ?? []) {
+      expect(coordinate).toHaveAttribute("aria-hidden", "true");
+    }
   });
 });

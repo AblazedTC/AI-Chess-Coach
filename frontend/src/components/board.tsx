@@ -62,30 +62,48 @@ export function Board({
           selected === item.square ? "selected-square" : "",
           targets?.includes(item.square) ? "legal-target" : "",
         ].join(" ");
-        const contents = (
+        const coordinates = (
           <>
-            {index % 8 === 0 && <span className="rank-label">{item.square[1]}</span>}
-            {index >= 56 && <span className="file-label">{item.square[0]}</span>}
-            <span className="piece" aria-hidden="true">
-              {item.symbol}
-            </span>
+            {index % 8 === 0 && (
+              <span className="rank-label" aria-hidden="true">
+                {item.square[1]}
+              </span>
+            )}
+            {index >= 56 && (
+              <span className="file-label" aria-hidden="true">
+                {item.square[0]}
+              </span>
+            )}
           </>
         );
+        const piece = (
+          <span className="piece" aria-hidden="true">
+            {item.symbol}
+          </span>
+        );
         return onMove ? (
-          <button
-            key={item.square}
-            type="button"
-            className={classes}
-            aria-label={`${item.square}, ${item.name}`}
-            aria-pressed={selected === item.square}
-            disabled={disabled}
-            onClick={() => select(item.square)}
-          >
-            {contents}
-          </button>
+          <div key={item.square} className={classes}>
+            {coordinates}
+            <button
+              type="button"
+              className="square-button"
+              aria-label={`${item.square}, ${item.name}`}
+              aria-pressed={selected === item.square}
+              disabled={disabled}
+              onClick={() => select(item.square)}
+            >
+              {piece}
+            </button>
+          </div>
         ) : (
-          <div key={item.square} className={classes} aria-label={`${item.square}, ${item.name}`}>
-            {contents}
+          <div
+            key={item.square}
+            className={classes}
+            role="img"
+            aria-label={`${item.square}, ${item.name}`}
+          >
+            {coordinates}
+            {piece}
           </div>
         );
       })}
