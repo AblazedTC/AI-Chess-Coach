@@ -5,7 +5,9 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const child = spawn(
   process.execPath,
   [
-    fileURLToPath(new URL("../node_modules/concurrently/dist/bin/concurrently.js", import.meta.url)),
+    fileURLToPath(
+      new URL("../node_modules/concurrently/dist/bin/concurrently.js", import.meta.url),
+    ),
     "--kill-others",
     "--names",
     "backend,frontend",
@@ -15,14 +17,6 @@ const child = spawn(
   {
     cwd: root,
     stdio: "inherit",
-    env: {
-      ...process.env,
-      CHESSCOM_MODE: process.env.CHESSCOM_MODE ?? "demo",
-      ENGINE_MODE: process.env.ENGINE_MODE ?? "demo",
-      LLM_PROVIDER: process.env.LLM_PROVIDER ?? "deterministic",
-      NEXT_PUBLIC_API_BASE_URL:
-        process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000",
-    },
   },
 );
 

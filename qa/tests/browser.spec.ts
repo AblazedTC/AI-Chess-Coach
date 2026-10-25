@@ -1,14 +1,22 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect, loadDemo, expectPosition, samplePgn } from "./fixtures";
+import {
+  at,
+  coachSchema,
+  gameSchema,
+  insightsSchema,
+  jobSchema,
+  positionAt,
+  practiceSchema,
+  readJson,
+} from "./contracts";
 
 test("offline demo navigation keeps board FEN and move position consistent", async ({
   page,
   api,
 }) => {
   const game = await loadDemo(page, api);
-  await expect(
-    page.getByRole("button", { name: "Previous move", exact: true }),
-  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Previous move", exact: true })).toBeDisabled();
   for (let ply = 1; ply <= 3; ply += 1) {
     await page.getByRole("button", { name: "Next move", exact: true }).click();
     await expectPosition(page, game, ply);
@@ -29,26 +37,20 @@ test("flipping the board preserves the selected position", async ({ page, api })
   await expect(board).toHaveJSProperty("innerHTML", before);
 });
 
-test("custom PGN import renders the imported game rather than the demo", async ({
-  page,
-  api,
-}) => {
+test("custom PGN import renders the imported game rather than the demo", async ({ page, api }) => {
   const imported = await api.post("/api/games/import", {
     data: { pgn: samplePgn },
   });
   expect(imported.ok()).toBeTruthy();
-  const game = await imported.json();
+  const game = await readJson(imported, gameSchema);
   await page.goto("/");
   await page.getByRole("button", { name: "Import PGN", exact: true }).click();
   await page.getByLabel("PGN", { exact: true }).fill(samplePgn);
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Import PGN", exact: true })
-    .click();
+  await page.getByRole("dialog").getByRole("button", { name: "Import PGN", exact: true }).click();
   await expectPosition(page, game, 0);
   await page.getByRole("button", { name: "Next move", exact: true }).click();
   await expectPosition(page, game, 1);
-  expect(game.moves[0].uci).toBe("d2d4");
+  expect(at(game.moves, 0).uci).toBe("d2d4");
 });
 
 test("invalid PGN shows an accessible error and preserves the loaded board", async ({
@@ -58,10 +60,7 @@ test("invalid PGN shows an accessible error and preserves the loaded board", asy
   const game = await loadDemo(page, api);
   await page.getByRole("button", { name: "Import PGN", exact: true }).click();
   await page.getByLabel("PGN", { exact: true }).fill("not a legal chess game");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Import PGN", exact: true })
-    .click();
+  await page.getByRole("dialog").getByRole("button", { name: "Import PGN", exact: true }).click();
   await expect(page.getByRole("dialog").getByRole("alert")).toContainText(/pgn|invalid|moves/i);
   await page.getByLabel("PGN", { exact: true }).press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
@@ -74,21 +73,20 @@ test("coach renders the response grounded in the selected game and position", as
 }) => {
   const game = await loadDemo(page, api);
   await page.getByRole("button", { name: "Next move", exact: true }).click();
-  await page.getByLabel("Ask a question", { exact: true }).fill(
-    "What is the material balance in this position?",
-  );
+  await page
+    .getByLabel("Ask a question", { exact: true })
+    .fill("What is the material balance in this position?");
   const responsePromise = page.waitForResponse(
     (response) =>
-      new URL(response.url()).pathname === "/api/coach" &&
-      response.request().method() === "POST",
+      new URL(response.url()).pathname === "/api/coach" && response.request().method() === "POST",
   );
   await page.getByRole("button", { name: "Ask coach", exact: true }).click();
   const response = await responsePromise;
   expect(response.ok()).toBeTruthy();
-  const coach = await response.json();
+  const coach = await readJson(response, coachSchema);
   expect(coach.game_id).toBe(game.id);
   expect(coach.ply).toBe(1);
-  expect(coach.position_key).toBe(game.positions[1].position_key);
+  expect(coach.position_key).toBe(positionAt(game, 1).position_key);
   expect(coach.mode).toBe("deterministic");
   expect(coach.message.length).toBeGreaterThan(20);
   expect(coach.citations.length).toBeGreaterThan(0);
@@ -104,19 +102,19 @@ test("practice is isolated from game history and resets to the selected position
   const game = await loadDemo(page, api);
   await page.getByRole("button", { name: "Practice", exact: true }).click();
   const board = page.getByRole("group", { name: "Practice board", exact: true });
-  await expect(board).toHaveAttribute("data-fen", game.positions[0].fen);
+  await expect(board).toHaveAttribute("data-fen", positionAt(game, 0).fen);
   const practice = await api.post("/api/practice", {
     data: { game_id: game.id, ply: 0, moves: ["e2e4"] },
   });
   expect(practice.ok()).toBeTruthy();
-  const expected = await practice.json();
+  const expected = await readJson(practice, practiceSchema);
   await page.getByLabel("Practice move", { exact: true }).fill("e2e4");
   await page.getByRole("button", { name: "Play move", exact: true }).click();
   await expect(board).toHaveAttribute("data-fen", expected.fen);
-  expect(expected.fen).not.toBe(game.positions[0].fen);
+  expect(expected.fen).not.toBe(positionAt(game, 0).fen);
   await expectPosition(page, game, 0);
   await page.getByRole("button", { name: "Reset practice", exact: true }).click();
-  await expect(board).toHaveAttribute("data-fen", game.positions[0].fen);
+  await expect(board).toHaveAttribute("data-fen", positionAt(game, 0).fen);
 });
 
 test("full-game analysis reaches completion with every position analyzed", async ({
@@ -132,15 +130,15 @@ test("full-game analysis reaches completion with every position analyzed", async
   await page.getByRole("button", { name: "Analyze game", exact: true }).click();
   const response = await jobPromise;
   expect(response.ok()).toBeTruthy();
-  const job = await response.json();
+  const job = await readJson(response, jobSchema);
   await expect
     .poll(async () => {
       const response = await api.get(`/api/analysis/jobs/${job.id}`);
       expect(response.ok()).toBeTruthy();
-      return (await response.json()).status;
+      return (await readJson(response, jobSchema)).status;
     })
     .toBe("completed");
-  const completed = await (await api.get(`/api/analysis/jobs/${job.id}`)).json();
+  const completed = await readJson(await api.get(`/api/analysis/jobs/${job.id}`), jobSchema);
   expect(completed.game_id).toBe(game.id);
   expect(completed.completed).toBe(completed.total);
   expect(completed.total).toBeGreaterThanOrEqual(game.moves.length);
@@ -153,10 +151,7 @@ test("full-game analysis reaches completion with every position analyzed", async
   await expectPosition(page, game, 0);
 });
 
-test("insights displays supported themes and honest demo limitations", async ({
-  page,
-  api,
-}) => {
+test("insights displays supported themes and honest demo limitations", async ({ page, api }) => {
   const game = await loadDemo(page, api);
   const responsePromise = page.waitForResponse(
     (response) =>
@@ -166,7 +161,7 @@ test("insights displays supported themes and honest demo limitations", async ({
   await page.getByRole("button", { name: "Insights", exact: true }).click();
   const response = await responsePromise;
   expect(response.ok()).toBeTruthy();
-  const insights = await response.json();
+  const insights = await readJson(response, insightsSchema);
   expect(insights.games_analyzed).toBe(1);
   expect(insights.summary.length).toBeGreaterThan(0);
   expect(insights.limitations.length).toBeGreaterThan(0);
@@ -177,16 +172,13 @@ test("insights displays supported themes and honest demo limitations", async ({
     expect(theme.supporting_positions.length).toBeGreaterThan(0);
     for (const support of theme.supporting_positions) {
       expect(support.game_id).toBe(game.id);
-      expect(support.position_key).toBe(game.positions[support.ply].position_key);
+      expect(support.position_key).toBe(positionAt(game, support.ply).position_key);
     }
   }
   await expect(region).toContainText(/demo|material|limited|deterministic/i);
 });
 
-test("keyboard navigation works without hijacking typing in form fields", async ({
-  page,
-  api,
-}) => {
+test("keyboard navigation works without hijacking typing in form fields", async ({ page, api }) => {
   const game = await loadDemo(page, api);
   await page.getByRole("button", { name: "Next move", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
@@ -215,10 +207,7 @@ test("keyboard navigation works without hijacking typing in form fields", async 
   await expectPosition(page, game, 1);
 });
 
-test("loaded demo has no serious or critical accessibility violations", async ({
-  page,
-  api,
-}) => {
+test("loaded demo has no serious or critical accessibility violations", async ({ page, api }) => {
   await loadDemo(page, api);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

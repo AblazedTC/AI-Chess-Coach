@@ -1,16 +1,5 @@
-import {
-  test as base,
-  expect,
-  type APIRequestContext,
-  type Page,
-} from "@playwright/test";
-
-export type Game = {
-  id: string;
-  pgn: string;
-  positions: Array<{ ply: number; fen: string; position_key: string }>;
-  moves: Array<{ ply: number; san: string; uci: string }>;
-};
+import { test as base, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { gameSchema, positionAt, readJson, type Game } from "./contracts";
 
 export const samplePgn = `[Event "Acceptance import"]
 [White "Local White"]
@@ -47,7 +36,7 @@ export const test = base.extend<{ api: APIRequestContext }>({
 export async function demo(api: APIRequestContext): Promise<Game> {
   const response = await api.get("/api/demo");
   expect(response.ok()).toBeTruthy();
-  const game = (await response.json()) as Game;
+  const game = await readJson(response, gameSchema);
   expect(game.moves.length).toBeGreaterThanOrEqual(8);
   expect(game.positions.length).toBe(game.moves.length + 1);
   return game;
@@ -62,9 +51,10 @@ export async function loadDemo(page: Page, api: APIRequestContext) {
 }
 
 export async function expectPosition(page: Page, game: Game, ply: number) {
-  await expect(
-    page.getByRole("group", { name: "Chess board", exact: true }),
-  ).toHaveAttribute("data-fen", game.positions[ply].fen);
+  await expect(page.getByRole("group", { name: "Chess board", exact: true })).toHaveAttribute(
+    "data-fen",
+    positionAt(game, ply).fen,
+  );
   await expect(page.getByText(`Position ${ply}`, { exact: true })).toBeVisible();
 }
 

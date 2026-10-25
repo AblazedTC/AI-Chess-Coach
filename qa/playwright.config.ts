@@ -53,8 +53,7 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command:
-        "npm --prefix frontend run dev -- --hostname 127.0.0.1 --port 3100",
+      command: "npm --prefix frontend run dev -- --hostname 127.0.0.1 --port 3100",
       cwd: root,
       env: demoEnv,
       url: "http://127.0.0.1:3100",
