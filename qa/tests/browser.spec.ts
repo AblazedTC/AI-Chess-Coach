@@ -62,7 +62,7 @@ test("invalid PGN shows an accessible error and preserves the loaded board", asy
     .getByRole("dialog")
     .getByRole("button", { name: "Import PGN", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText(/pgn|invalid|moves/i);
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText(/pgn|invalid|moves/i);
   await page.getByLabel("PGN", { exact: true }).press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expectPosition(page, game, 0);

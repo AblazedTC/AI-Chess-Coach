@@ -73,6 +73,7 @@ jobs:
       - run: uv --directory backend sync --locked
       - run: npm --prefix frontend ci
       - run: npm ci
+      - run: npm run test:chat
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node qa/dev.mjs",
-    "test": "uv --directory backend run pytest && npm --prefix frontend run test -- --run",
+    "test": "npm run test:chat && uv --directory backend run pytest && npm --prefix frontend run test -- --run",
+    "test:chat": "node --test scripts/export-chat.test.mjs",
+    "chat:export": "node scripts/export-chat.mjs",
     "lint": "uv --directory backend run ruff check . && uv --directory backend run ruff format --check . && uv --directory backend run mypy app && npm --prefix frontend run lint && npm --prefix frontend run format:check && npm --prefix frontend run typecheck",
     "build": "npm --prefix frontend run build",
     "test:e2e": "playwright test --config qa/playwright.config.ts"
