@@ -1,28 +1,31 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { WorkspaceModel } from "@/hooks/use-workspace";
-import { moveRows } from "@/lib/chess";
+import { formatScore, moveRows, scoreHeight } from "@/lib/chess";
 import { Board } from "./board";
 import { Tag } from "./ui";
 
 export function GameBoard({
   model,
 }: {
-  model: Pick<WorkspaceModel, "state" | "position" | "navigate" | "flip">;
+  model: Pick<WorkspaceModel, "state" | "position" | "navigate" | "flip"> & {
+    analysis?: WorkspaceModel["analysis"];
+  };
 }) {
   const { state, position } = model;
-  const selectedMove = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    selectedMove.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
-  }, [state.ply]);
   if (!state.game || !position) return null;
   const game = state.game;
   const last = game.positions.at(-1)?.ply ?? 0;
   const currentMove = game.moves.find((move) => move.ply === state.ply);
   const topName = state.flipped ? game.white : game.black;
   const bottomName = state.flipped ? game.black : game.white;
-  const rows = moveRows(game.moves, game.positions[0].fen);
+  const height = model.analysis ? scoreHeight(model.analysis, position.turn) : null;
+  const fillStyle: CSSProperties & { "--white-share": string } = {
+    "--white-share": `${100 - (height ?? 50)}%`,
+  };
+  const source = model.analysis?.source === "demo" ? "Material balance" : "Evaluation";
+  const score = model.analysis ? formatScore(model.analysis.score) : "—";
 
   return (
     <section className="board-panel" aria-label="Game replay">
@@ -37,6 +40,17 @@ export function GameBoard({
         <Tag>{game.headers.TimeControl || "Game review"}</Tag>
       </div>
       <div className="board-frame">
+        <div
+          className={`evaluation-bar ${state.flipped ? "is-flipped" : ""}`}
+          role="img"
+          aria-label={
+            model.analysis ? `${source}: ${score}, White's perspective` : "Position not analyzed"
+          }
+          title={model.analysis ? `${source}: ${score}, White's perspective` : "Not analyzed"}
+        >
+          <div className="evaluation-fill" style={fillStyle} />
+          <span>{score}</span>
+        </div>
         <Board fen={position.fen} flipped={state.flipped} lastMove={currentMove} />
       </div>
       <div className="player-bar bottom-player">
@@ -108,9 +122,29 @@ export function GameBoard({
           ⇅
         </button>
       </div>
+    </section>
+  );
+}
+
+export function MoveList({
+  model,
+  active = true,
+}: {
+  model: Pick<WorkspaceModel, "state" | "navigate">;
+  active?: boolean;
+}) {
+  const { state } = model;
+  const selectedMove = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (active) selectedMove.current?.scrollIntoView?.({ block: "nearest", behavior: "instant" });
+  }, [state.ply, active]);
+  if (!state.game) return null;
+  const rows = moveRows(state.game.moves, state.game.positions[0].fen);
+  return (
+    <section className="moves-panel" aria-label="Game moves">
       <div className="moves-header">
         <h2>Moves</h2>
-        <small>← → to explore · F to flip</small>
+        <small>← → navigate · F flip</small>
       </div>
       <div className="move-list" aria-label="Move list">
         {rows.length === 0 && <p className="muted">Starting position. No moves yet.</p>}

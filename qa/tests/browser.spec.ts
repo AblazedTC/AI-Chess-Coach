@@ -100,6 +100,7 @@ test("practice is isolated from game history and resets to the selected position
   api,
 }) => {
   const game = await loadDemo(page, api);
+  await page.getByRole("tab", { name: "Practice", exact: true }).click();
   await page.getByRole("button", { name: "Practice", exact: true }).click();
   const board = page.getByRole("group", { name: "Practice board", exact: true });
   await expect(board).toHaveAttribute("data-fen", positionAt(game, 0).fen);
@@ -122,6 +123,7 @@ test("full-game analysis reaches completion with every position analyzed", async
   api,
 }) => {
   const game = await loadDemo(page, api);
+  await page.getByRole("tab", { name: "Review", exact: true }).click();
   const jobPromise = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === "/api/analysis/jobs" &&
@@ -153,6 +155,7 @@ test("full-game analysis reaches completion with every position analyzed", async
 
 test("insights displays supported themes and honest demo limitations", async ({ page, api }) => {
   const game = await loadDemo(page, api);
+  await page.getByRole("tab", { name: "Insights", exact: true }).click();
   const responsePromise = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === "/api/insights" &&
