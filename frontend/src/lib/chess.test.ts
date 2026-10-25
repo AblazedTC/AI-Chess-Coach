@@ -43,6 +43,12 @@ describe("evaluation formatting", () => {
     expect(scoreHeight({ ...analysis, score: { kind: "mate", value: 3 } })).toBe(5);
     expect(scoreHeight({ ...analysis, score: { kind: "cp", value: -3000 } })).toBe(95);
   });
+  it("uses the side to move for mate zero, and stays unknown without context", () => {
+    const mate = { ...analysis, score: { kind: "mate" as const, value: 0 } };
+    expect(scoreHeight(mate, "white")).toBe(95);
+    expect(scoreHeight(mate, "black")).toBe(5);
+    expect(scoreHeight(mate)).toBeNull();
+  });
 });
 
 describe("keyboard targets", () => {
@@ -60,6 +66,11 @@ describe("keyboard targets", () => {
     const span = document.createElement("span");
     dialog.appendChild(span);
     expect(isTypingTarget(span)).toBe(true);
+  });
+  it("leaves graph scrolling keys to the focused graph", () => {
+    const graph = document.createElement("div");
+    graph.dataset.shortcuts = "ignore";
+    expect(isTypingTarget(graph)).toBe(true);
   });
   it("recognizes only queued/running jobs as active", () => {
     expect(isActiveJob("queued")).toBe(true);

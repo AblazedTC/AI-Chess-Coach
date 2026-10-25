@@ -1,4 +1,5 @@
 import type { WorkspaceModel } from "@/hooks/use-workspace";
+import { MAX_INSIGHT_GAMES } from "@/lib/limits";
 import { ErrorNotice, SectionHeading, Spinner, Tag } from "./ui";
 
 export function InsightsPanel({ model }: { model: WorkspaceModel }) {
@@ -24,7 +25,7 @@ export function InsightsPanel({ model }: { model: WorkspaceModel }) {
         {model.insightIds.length
           ? `${model.insightIds.length} game${model.insightIds.length === 1 ? "" : "s"} selected.`
           : "Select games in the library."}{" "}
-        Review one game or compare several. Every theme links back to a position.
+        Review up to {MAX_INSIGHT_GAMES} games at a time. Every theme links back to a position.
       </p>
       {model.insightsError && (
         <ErrorNotice retry={() => void model.getInsights()}>{model.insightsError}</ErrorNotice>

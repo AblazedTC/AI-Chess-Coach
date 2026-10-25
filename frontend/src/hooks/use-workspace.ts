@@ -4,7 +4,16 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/api";
 import { isActiveJob, isTypingTarget, summaryOf } from "@/lib/chess";
 import { initialState, reducer } from "@/lib/state";
-import type { Citation, GameDetail, GameSummary, Health, Insights, Player } from "@/lib/types";
+import { MAX_COACH_CONTENT, MAX_INSIGHT_GAMES, MAX_PRACTICE_MOVES } from "@/lib/limits";
+import type {
+  AnalysisJob,
+  Citation,
+  GameDetail,
+  GameSummary,
+  Health,
+  Insights,
+  Player,
+} from "@/lib/types";
 
 interface RequestState {
   key: string;
@@ -41,6 +50,10 @@ export function useWorkspace() {
   const practiceController = useRef<AbortController | null>(null);
   const jobController = useRef<AbortController | null>(null);
   const insightsController = useRef<AbortController | null>(null);
+  const latestJob = useRef<AnalysisJob | null>(null);
+  const gameEpoch = useRef(0);
+  const mounted = useRef(true);
+  const pendingJob = useRef<{ epoch: number } | null>(null);
   const position = state.game?.positions.find((item) => item.ply === state.ply);
   const key =
     state.game && position ? `${state.game.id}:${position.position_key}:${state.ply}` : "";
@@ -58,17 +71,31 @@ export function useWorkspace() {
     return () => controller.abort();
   }, []);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      pendingJob.current = null;
+      const job = latestJob.current;
+      latestJob.current = null;
+      if (job && isActiveJob(job.status)) {
+        void api.cancelJob(job.id).catch(() => undefined);
+      }
       loadController.current?.abort();
       searchController.current?.abort();
       coachController.current?.abort();
       practiceController.current?.abort();
       jobController.current?.abort();
       insightsController.current?.abort();
-    },
-    [],
-  );
+    };
+  }, []);
+
+  const acceptJob = useCallback((job: AnalysisJob) => {
+    const previous = latestJob.current;
+    if (previous?.id === job.id && !isActiveJob(previous.status) && isActiveJob(job.status)) return;
+    latestJob.current = job;
+    dispatch({ type: "job", job });
+  }, []);
 
   const navigate = useCallback(
     (ply: number) => {
@@ -153,19 +180,21 @@ export function useWorkspace() {
   useEffect(() => {
     if (!currentJob || !isActiveJob(currentJob.status)) return;
     const controller = new AbortController();
+    const epoch = gameEpoch.current;
     const timer = window.setTimeout(async () => {
       try {
         const job = await api.job(currentJob.id, controller.signal);
-        if (!controller.signal.aborted) dispatch({ type: "job", job });
+        if (!controller.signal.aborted && epoch === gameEpoch.current) acceptJob(job);
       } catch (cause) {
-        if (!controller.signal.aborted) setJobError(errorMessage(cause));
+        if (!controller.signal.aborted && epoch === gameEpoch.current)
+          setJobError(errorMessage(cause));
       }
     }, 600);
     return () => {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [currentJob]);
+  }, [currentJob, acceptJob]);
 
   async function load(
     fetchGame: (signal: AbortSignal) => Promise<GameDetail>,
@@ -193,8 +222,12 @@ export function useWorkspace() {
       practiceController.current?.abort();
       jobController.current?.abort();
       insightsController.current?.abort();
-      if (state.job && isActiveJob(state.job.status)) {
-        void api.cancelJob(state.job.id).catch(() => undefined);
+      gameEpoch.current++;
+      pendingJob.current = null;
+      const job = latestJob.current;
+      latestJob.current = null;
+      if (job && isActiveJob(job.status)) {
+        void api.cancelJob(job.id).catch(() => undefined);
       }
       dispatch({ type: "load", game, ply: selectedPly });
       setLibrary((previous) =>
@@ -252,6 +285,13 @@ export function useWorkspace() {
   async function askCoach(question: string) {
     const value = question.trim();
     if (!state.game || !value || !position) return;
+    if (value.length > MAX_COACH_CONTENT) {
+      setCoachRequest({
+        key,
+        error: `Questions must be ${MAX_COACH_CONTENT.toLocaleString()} characters or fewer.`,
+      });
+      return;
+    }
     coachController.current?.abort();
     const controller = new AbortController();
     coachController.current = controller;
@@ -261,7 +301,10 @@ export function useWorkspace() {
         state.game.id,
         position.ply,
         value,
-        conversation?.messages.slice(-12) || [],
+        (conversation?.messages || [])
+          .filter((message) => message.content.trim())
+          .slice(-12)
+          .map((message) => ({ ...message, content: message.content.slice(0, MAX_COACH_CONTENT) })),
         controller.signal,
       );
       if (!controller.signal.aborted) {
@@ -275,6 +318,13 @@ export function useWorkspace() {
 
   async function playPractice(move: string) {
     if (!state.game || !state.practice || !position) return;
+    if (state.practice.moves.length >= MAX_PRACTICE_MOVES) {
+      setPracticeRequest({
+        key,
+        error: `This variation has reached ${MAX_PRACTICE_MOVES} moves. Reset practice to try another line.`,
+      });
+      return;
+    }
     const value = move.trim().toLowerCase();
     if (!state.practice.legal_moves.includes(value)) {
       setPracticeRequest({
@@ -311,19 +361,30 @@ export function useWorkspace() {
   }
 
   async function analyzeGame() {
-    if (!state.game || jobStarting || isActiveJob(state.job?.status)) return;
-    jobController.current?.abort();
-    const controller = new AbortController();
-    jobController.current = controller;
+    if (!state.game || pendingJob.current || isActiveJob(latestJob.current?.status)) return;
+    const pending = { epoch: gameEpoch.current };
+    pendingJob.current = pending;
     setJobStarting(true);
     setJobError("");
     try {
-      const job = await api.startJob(state.game.id, controller.signal);
-      if (!controller.signal.aborted) dispatch({ type: "job", job });
+      // Keep the creation response: aborting a POST can lose an already-created server job's ID.
+      const job = await api.startJob(state.game.id);
+      if (
+        !mounted.current ||
+        pending.epoch !== gameEpoch.current ||
+        pendingJob.current !== pending
+      ) {
+        if (isActiveJob(job.status)) await api.cancelJob(job.id).catch(() => undefined);
+        return;
+      }
+      acceptJob(job);
     } catch (cause) {
-      if (!controller.signal.aborted) setJobError(errorMessage(cause));
+      if (mounted.current && pendingJob.current === pending) setJobError(errorMessage(cause));
     } finally {
-      if (!controller.signal.aborted) setJobStarting(false);
+      if (mounted.current && pendingJob.current === pending) {
+        pendingJob.current = null;
+        setJobStarting(false);
+      }
     }
   }
 
@@ -336,7 +397,7 @@ export function useWorkspace() {
     setJobError("");
     try {
       const job = await api.cancelJob(state.job.id, controller.signal);
-      if (!controller.signal.aborted) dispatch({ type: "job", job });
+      if (!controller.signal.aborted) acceptJob(job);
     } catch (cause) {
       if (!controller.signal.aborted) setJobError(errorMessage(cause));
     } finally {
@@ -346,6 +407,10 @@ export function useWorkspace() {
 
   async function getInsights() {
     if (!insightIds.length) return;
+    if (insightIds.length > MAX_INSIGHT_GAMES) {
+      setInsightsError(`Select no more than ${MAX_INSIGHT_GAMES} games for insights.`);
+      return;
+    }
     insightsController.current?.abort();
     const controller = new AbortController();
     insightsController.current = controller;
@@ -368,7 +433,11 @@ export function useWorkspace() {
     setInsights(null);
     setInsightsError("");
     setInsightIds((previous) =>
-      previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id],
+      previous.includes(id)
+        ? previous.filter((item) => item !== id)
+        : previous.length < MAX_INSIGHT_GAMES
+          ? [...previous, id]
+          : previous,
     );
   }
 
@@ -399,6 +468,7 @@ export function useWorkspace() {
       ((!state.practice && !(practiceRequest.key === key && practiceRequest.error)) ||
         (practiceRequest.key === key && Boolean(practiceRequest.pending))),
     practiceError: practiceRequest.key === key ? practiceRequest.error : undefined,
+    practiceAtLimit: (state.practice?.moves.length ?? 0) >= MAX_PRACTICE_MOVES,
     jobStarting,
     jobCancelling,
     jobError,

@@ -185,4 +185,73 @@ describe("complete workspace", () => {
       AFTER_E4,
     );
   });
+  it("exposes the coach API character limit in the field and validation", async () => {
+    const user = await demo();
+    const input = screen.getByLabelText("Ask a question");
+    expect(input).toHaveAttribute("maxlength", "2000");
+    fireEvent.change(input, { target: { value: "x".repeat(2001) } });
+    await user.click(screen.getByRole("button", { name: "Ask coach" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("2,000 characters or fewer");
+    expect(fetcher.mock.calls.some(([url]) => url.endsWith("/api/coach"))).toBe(false);
+  });
+  it("disables capped practice interaction but leaves reset available", async () => {
+    const user = await demo();
+    const original = fetcher.getMockImplementation()!;
+    let initialization = 0;
+    fetcher.mockImplementation(async (input, init) => {
+      if (input.endsWith("/api/practice")) {
+        initialization++;
+        return jsonResponse(
+          initialization === 1
+            ? { ...practice, moves: Array.from({ length: 100 }, () => "g1f3") }
+            : practice,
+        );
+      }
+      return original(input, init);
+    });
+    await user.click(screen.getByRole("button", { name: "Practice" }));
+    expect(await screen.findByText(/This variation has reached 100 moves/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Practice move")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Play move" })).toBeDisabled();
+    expect(
+      within(screen.getByRole("group", { name: "Practice board" })).getByRole("button", {
+        name: "e2, white pawn",
+      }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reset practice" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Reset practice" }));
+    await waitFor(() => expect(screen.getByLabelText("Practice move")).toBeEnabled());
+  });
+  it("explains the insights selection cap and disables only unchecked games at ten", async () => {
+    const user = userEvent.setup();
+    const original = fetcher.getMockImplementation()!;
+    fetcher.mockImplementation(async (input, init) => {
+      if (input.endsWith("/api/players/test-player"))
+        return jsonResponse({ username: "test-player", name: null, rating: null, avatar: null });
+      if (input.endsWith("/api/players/test-player/games"))
+        return jsonResponse({
+          games: Array.from({ length: 12 }, (_, index) => ({
+            id: `game-${index}`,
+            white: `White${index}`,
+            black: "Black",
+            result: "*",
+            end_time: null,
+            time_control: null,
+            url: null,
+          })),
+        });
+      return original(input, init);
+    });
+    render(<Workspace />);
+    await user.type(screen.getByLabelText("Chess.com username"), "test-player");
+    await user.click(screen.getByRole("button", { name: "Search games" }));
+    const boxes = await screen.findAllByRole("checkbox");
+    for (const box of boxes.slice(0, 10)) await user.click(box);
+    expect(screen.getByText(/10 \/ 10 games selected.*Limit reached/)).toBeInTheDocument();
+    expect(boxes[9]).toBeEnabled();
+    expect(boxes[10]).toBeDisabled();
+    expect(boxes[11]).toBeDisabled();
+    await user.click(boxes[0]);
+    expect(boxes[10]).toBeEnabled();
+  });
 });

@@ -1386,13 +1386,22 @@ progress::-moz-progress-bar {
 }
 .eval-graph {
   position: relative;
-  display: flex;
-  height: 114px;
-  overflow: hidden;
+  height: 128px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #6d8953 #152013;
   border: 1px solid #3e5033;
   border-radius: 5px;
   background: #152013;
   isolation: isolate;
+}
+.graph-track {
+  display: flex;
+  position: relative;
+  height: 110px;
+  width: 100%;
 }
 .graph-zero {
   position: absolute;
@@ -1406,9 +1415,21 @@ progress::-moz-progress-bar {
 .graph-column {
   position: relative;
   border: none;
-  min-width: 5px;
+  min-width: 24px;
+  flex: 1 0 24px;
   background: none;
   padding: 0;
+}
+.graph-column:focus-visible {
+  outline-offset: -3px;
+  z-index: 4;
+}
+.graph-unknown {
+  color: var(--muted);
+}
+.empty-move {
+  color: var(--muted);
+  padding-inline: 12px;
 }
 .graph-column:hover {
   background: #7d995b22;

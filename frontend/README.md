@@ -6,7 +6,8 @@ download fonts or require external services.
 
 ## Run
 
-Requires Node.js 22.12+ and the backend running on port 8000.
+Requires Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` and the backend running on
+port 8000.
 
 ```powershell
 npm --prefix frontend ci
@@ -30,16 +31,25 @@ Stockfish and Anthropic are labeled only when reported by the backend.
 - Inspect per-position analysis, ask grounded coach questions, and revisit
   position-specific conversation history. Coach text is rendered as plain text.
 - Start/cancel full-game analysis; select graph points and engine-supported key
-  moments. All scores and graphs use White's perspective.
+  moments. All scores and graphs use White's perspective. Long graphs scroll
+  horizontally; swipe, scroll, or Tab to reach every position.
 - Open **Practice** to explore a separate board. Click a piece and destination or
   enter UCI (for example `e2e4`). Click promotion defaults to queen; use `e7e8n`
-  to underpromote. **Reset practice** returns to the selected original position.
+  to underpromote. Each variation supports up to 100 moves; **Reset practice**
+  returns to the selected original position and clears that limit.
 - Select library checkboxes and choose **Insights** for per-game or multi-game
-  themes. Position citations navigate to their source game and position.
+  themes, up to 10 games at a time. Position citations navigate to their source
+  game and position.
+
+Coach questions are limited to 2,000 characters. Full responses remain visible,
+but each history message sent with a follow-up is bounded to 2,000 characters.
 
 Requests are abortable and selection-scoped; outdated responses cannot overwrite
 a newly selected game or position. Leaving a game cancels its active analysis
-job on a best-effort basis. Failed requests preserve the original game.
+job on a best-effort basis, including jobs whose creation finishes after leaving
+or closing the workspace. Creation requests are allowed to return their job ID
+so the resulting server job can be cancelled. Failed requests preserve the
+original game.
 
 ## Validate
 

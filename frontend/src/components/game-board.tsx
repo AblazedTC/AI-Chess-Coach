@@ -2,10 +2,15 @@
 
 import { useEffect, useRef } from "react";
 import type { WorkspaceModel } from "@/hooks/use-workspace";
+import { moveRows } from "@/lib/chess";
 import { Board } from "./board";
 import { Tag } from "./ui";
 
-export function GameBoard({ model }: { model: WorkspaceModel }) {
+export function GameBoard({
+  model,
+}: {
+  model: Pick<WorkspaceModel, "state" | "position" | "navigate" | "flip">;
+}) {
   const { state, position } = model;
   const selectedMove = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
@@ -17,9 +22,7 @@ export function GameBoard({ model }: { model: WorkspaceModel }) {
   const currentMove = game.moves.find((move) => move.ply === state.ply);
   const topName = state.flipped ? game.white : game.black;
   const bottomName = state.flipped ? game.black : game.white;
-  const rows = Array.from({ length: Math.ceil(game.moves.length / 2) }, (_, index) =>
-    game.moves.slice(index * 2, index * 2 + 2),
-  );
+  const rows = moveRows(game.moves, game.positions[0].fen);
 
   return (
     <section className="board-panel" aria-label="Game replay">
@@ -111,21 +114,36 @@ export function GameBoard({ model }: { model: WorkspaceModel }) {
       </div>
       <div className="move-list" aria-label="Move list">
         {rows.length === 0 && <p className="muted">Starting position. No moves yet.</p>}
-        {rows.map((moves, index) => (
-          <div className="move-row" key={index}>
-            <span className="move-number">{index + 1}.</span>
-            {moves.map((move) => (
-              <button
-                key={move.ply}
-                className={move.ply === state.ply ? "current-move" : ""}
-                ref={move.ply === state.ply ? selectedMove : null}
-                aria-label={`Go to move ${move.ply}: ${move.san}`}
-                aria-current={move.ply === state.ply ? "step" : undefined}
-                onClick={() => model.navigate(move.ply)}
-              >
-                {move.san}
-              </button>
-            ))}
+        {rows.map((row) => (
+          <div
+            className="move-row"
+            key={row.fullmove}
+            role="group"
+            aria-label={`Move ${row.fullmove}`}
+          >
+            <span className="move-number">{row.fullmove}.</span>
+            {[row.white, row.black].map((move, index) =>
+              move ? (
+                <button
+                  key={move.ply}
+                  className={move.ply === state.ply ? "current-move" : ""}
+                  ref={move.ply === state.ply ? selectedMove : null}
+                  aria-label={`Go to move ${move.ply}: ${move.san}`}
+                  aria-current={move.ply === state.ply ? "step" : undefined}
+                  onClick={() => model.navigate(move.ply)}
+                >
+                  {move.san}
+                </button>
+              ) : (
+                <span
+                  key={`empty-${index}`}
+                  className="empty-move"
+                  aria-label={`No ${index === 0 ? "White" : "Black"} move`}
+                >
+                  —
+                </span>
+              ),
+            )}
           </div>
         ))}
       </div>
