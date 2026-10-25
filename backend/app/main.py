@@ -67,11 +67,9 @@ class LocalCORS(CORSMiddleware):
         return response
 
 
-class RequestLimits:
-    def __init__(self, app: ASGIApp, max_bytes: int):
+class RequestIdentity:
+    def __init__(self, app: ASGIApp):
         self.app = app
-        self.max_bytes = max_bytes
-        self.active = 0
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -80,12 +78,9 @@ class RequestLimits:
         request_id = uuid.uuid4().hex
         token = request_id_context.set(request_id)
         scope.setdefault("state", {})["request_id"] = request_id
-        started = False
 
         async def with_id(message: Message) -> None:
-            nonlocal started
             if message["type"] == "http.response.start":
-                started = True
                 message["headers"] = [
                     *[
                         item
@@ -98,13 +93,35 @@ class RequestLimits:
                 ]
             await send(message)
 
+        try:
+            await self.app(scope, receive, with_id)
+        finally:
+            request_id_context.reset(token)
+
+
+class RequestLimits:
+    def __init__(self, app: ASGIApp, max_bytes: int):
+        self.app = app
+        self.max_bytes = max_bytes
+        self.active = 0
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        request_id = scope["state"]["request_id"]
+        started = False
+
+        async def track_response(message: Message) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
         if self.active >= 32:
-            try:
-                await error_response(
-                    429, "request_limit", "Too many concurrent requests.", request_id
-                )(scope, receive, with_id)
-            finally:
-                request_id_context.reset(token)
+            await error_response(429, "request_limit", "Too many concurrent requests.", request_id)(
+                scope, receive, track_response
+            )
             return
         self.active += 1
         try:
@@ -140,16 +157,16 @@ class RequestLimits:
                     return {"type": "http.request", "body": bytes(body), "more_body": False}
                 return await receive()
 
-            await self.app(scope, replay, with_id)
+            await self.app(scope, replay, track_response)
         except AppError as exc:
             if not started:
                 await error_response(exc.status, exc.code, exc.message, request_id)(
-                    scope, receive, with_id
+                    scope, receive, track_response
                 )
         except TimeoutError:
             if not started:
                 await error_response(408, "request_timeout", "Request body timed out.", request_id)(
-                    scope, receive, with_id
+                    scope, receive, track_response
                 )
         except Exception as exc:
             if not started:
@@ -160,10 +177,9 @@ class RequestLimits:
                 )
                 await error_response(
                     500, "internal_error", "An unexpected server error occurred.", request_id
-                )(scope, receive, with_id)
+                )(scope, receive, track_response)
         finally:
             self.active -= 1
-            request_id_context.reset(token)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -209,6 +225,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         },
     )
     app.state.settings = config
+    app.add_middleware(RequestLimits, max_bytes=config.max_request_bytes)
     app.add_middleware(
         LocalCORS,
         allow_origins=config.cors_origins,
@@ -217,7 +234,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["Content-Type"],
         expose_headers=["X-Request-ID"],
     )
-    app.add_middleware(RequestLimits, max_bytes=config.max_request_bytes)
+    app.add_middleware(RequestIdentity)
 
     @app.exception_handler(AppError)
     async def app_error(request: Request, exc: AppError) -> JSONResponse:

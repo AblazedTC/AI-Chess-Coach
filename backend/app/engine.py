@@ -87,7 +87,11 @@ class Engine:
     def demo(self, board: chess.Board) -> Evaluation:
         score = Score(kind="cp", value=material_cp(board))
         # Lexicographic legality examples, NOT an ordering of move quality.
-        examples = sorted(board.legal_moves, key=lambda move: move.uci())[:3]
+        examples = (
+            sorted(board.legal_moves, key=lambda move: move.uci())[:3]
+            if not board.is_game_over()
+            else []
+        )
         lines = [
             AnalysisLine(uci=[move.uci()], san=[board.san(move)], score=score) for move in examples
         ]
@@ -124,6 +128,10 @@ class Engine:
                 )
                 if not infos or "score" not in infos[0]:
                     raise AppError(502, "engine_response", "Engine returned no usable score.")
+                if board.is_game_over():
+                    return Evaluation(
+                        white_score(infos[0]["score"]), infos[0].get("depth"), [], None
+                    )
                 lines: list[AnalysisLine] = []
                 for info in infos[:3]:
                     if "score" not in info:
