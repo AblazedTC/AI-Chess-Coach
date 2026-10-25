@@ -199,6 +199,7 @@ export function useWorkspace() {
   async function load(
     fetchGame: (signal: AbortSignal) => Promise<GameDetail>,
     selectedPly = 0,
+    preserveInsights = false,
   ): Promise<boolean> {
     loadController.current?.abort();
     const controller = new AbortController();
@@ -221,7 +222,7 @@ export function useWorkspace() {
       coachController.current?.abort();
       practiceController.current?.abort();
       jobController.current?.abort();
-      insightsController.current?.abort();
+      if (!preserveInsights) insightsController.current?.abort();
       gameEpoch.current++;
       pendingJob.current = null;
       const job = latestJob.current;
@@ -233,10 +234,12 @@ export function useWorkspace() {
       setLibrary((previous) =>
         previous.some((item) => item.id === game.id) ? previous : [summaryOf(game), ...previous],
       );
-      setInsightIds([game.id]);
-      setInsights(null);
-      setInsightsError("");
-      setInsightsLoading(false);
+      if (!preserveInsights) {
+        setInsightIds([game.id]);
+        setInsights(null);
+        setInsightsError("");
+        setInsightsLoading(false);
+      }
       setCoachRequest({ key: "" });
       setPracticeRequest({ key: "" });
       setAnalysisRequest({ key: "" });
@@ -268,6 +271,11 @@ export function useWorkspace() {
         api.games(value, controller.signal),
       ]);
       if (controller.signal.aborted) return;
+      insightsController.current?.abort();
+      setInsightIds([]);
+      setInsights(null);
+      setInsightsError("");
+      setInsightsLoading(false);
       setPlayer(profile);
       setLibrary(result.games);
       setSearched(true);
@@ -443,7 +451,7 @@ export function useWorkspace() {
 
   function selectCitation(citation: Citation) {
     if (citation.game_id === state.game?.id) navigate(citation.ply);
-    else void load((signal) => api.game(citation.game_id, signal), citation.ply);
+    else void load((signal) => api.game(citation.game_id, signal), citation.ply, true);
   }
 
   return {
