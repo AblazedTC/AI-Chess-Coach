@@ -21,6 +21,7 @@ test("390px viewport fits the board, forms, and practice without horizontal over
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
   await page.getByRole("button", { name: "Next move", exact: true }).tap();
   await expectPosition(page, game, 1);
+  await page.getByRole("tab", { name: "Practice", exact: true }).tap();
   await page.getByRole("button", { name: "Practice", exact: true }).tap();
   await expect(page.getByRole("group", { name: "Practice board", exact: true })).toBeVisible();
   await expectNoOverflow();
@@ -52,6 +53,7 @@ test("long evaluation graph scrolls within 390px and keeps its last position rea
   await page.getByLabel("PGN", { exact: true }).fill(pgn);
   await page.getByRole("dialog").getByRole("button", { name: "Import PGN", exact: true }).click();
   await expectPosition(page, game, 0);
+  await page.getByRole("tab", { name: "Review", exact: true }).click();
   await page.getByRole("button", { name: "Analyze game", exact: true }).click();
   await expect(page.getByRole("region", { name: "Full-game analysis", exact: true })).toContainText(
     /completed/i,

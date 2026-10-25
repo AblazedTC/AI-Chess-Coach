@@ -135,6 +135,7 @@ describe("complete workspace", () => {
   });
   it("plays and resets practice while leaving the original board unchanged", async () => {
     const user = await demo();
+    await user.click(screen.getByRole("tab", { name: "Practice" }));
     await user.click(screen.getByRole("button", { name: "Practice" }));
     const practiceBoard = screen.getByRole("group", { name: "Practice board" });
     await waitFor(() =>
@@ -163,6 +164,7 @@ describe("complete workspace", () => {
   });
   it("rejects illegal practice locally and does not send an invalid variation", async () => {
     const user = await demo();
+    await user.click(screen.getByRole("tab", { name: "Practice" }));
     await user.click(screen.getByRole("button", { name: "Practice" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Reset practice" })).toBeEnabled(),
@@ -175,6 +177,7 @@ describe("complete workspace", () => {
   });
   it("shows grounded insights and follows supporting position citations", async () => {
     const user = await demo();
+    await user.click(screen.getByRole("tab", { name: "Insights" }));
     await user.click(screen.getByRole("button", { name: "Insights" }));
     const region = screen.getByRole("region", { name: "Insights" });
     expect(await within(region).findByText("A material-only demo insight.")).toBeInTheDocument();
@@ -209,6 +212,7 @@ describe("complete workspace", () => {
       }
       return original(input, init);
     });
+    await user.click(screen.getByRole("tab", { name: "Practice" }));
     await user.click(screen.getByRole("button", { name: "Practice" }));
     expect(await screen.findByText(/This variation has reached 100 moves/)).toBeInTheDocument();
     expect(screen.getByLabelText("Practice move")).toBeDisabled();

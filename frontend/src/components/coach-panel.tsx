@@ -34,77 +34,85 @@ export function CoachPanel({ model }: { model: WorkspaceModel }) {
           <h2>Your coach</h2>
           <p>Let&apos;s understand the why.</p>
         </div>
-        <Tag tone="green">{mode === "anthropic" ? "AI + evidence" : "Grounded guide"}</Tag>
+        <Tag tone="green">
+          {!mode
+            ? "Coach status pending"
+            : mode === "anthropic"
+              ? "AI + evidence"
+              : "Offline coach"}
+        </Tag>
       </div>
       <div className="coach-context">
         <span className="tiny-dot" /> Studying position {model.state.ply}
         <span>{model.position?.turn} to move</span>
       </div>
-      <div
-        className="coach-response"
-        role="region"
-        aria-label="Coach response"
-        aria-live="polite"
-        aria-busy={model.coachBusy}
-      >
-        {conversation?.messages.length ? (
-          <div className="chat-history">
-            {conversation.messages.map((message, index) => (
-              <div className={`chat-message ${message.role}`} key={index}>
-                <small>{message.role === "user" ? "You" : "Coach"}</small>
-                <p>{message.content}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="coach-empty">
-            <p>A good question is the first move.</p>
-            <span>
-              Ask about this exact position. Your conversation stays with it as you explore the
-              game.
-            </span>
-          </div>
-        )}
-        {model.coachBusy && <Spinner label="Looking at the position" />}
-      </div>
-      {response && (
-        <div className="coach-evidence">
-          <div className="evidence-heading">
-            <span>POSITION EVIDENCE</span>
-            <Tag>{response.mode === "deterministic" ? "Deterministic" : "Anthropic"}</Tag>
-          </div>
-          {response.citations.length > 0 && (
-            <ul className="citation-list">
-              {response.citations.map((citation, index) => (
-                <li key={index}>
-                  <button
-                    className="citation-button"
-                    onClick={() => model.navigate(response.ply)}
-                    title={citation}
-                  >
-                    <span aria-hidden="true">⌖</span> Position {response.ply}
-                    <small>{citation}</small>
-                  </button>
-                </li>
+      <div className="coach-scroll">
+        {response?.warning && <p className="honesty-note">{response.warning}</p>}
+        <div
+          className="coach-response"
+          role="region"
+          aria-label="Coach response"
+          aria-live="polite"
+          aria-busy={model.coachBusy}
+        >
+          {conversation?.messages.length ? (
+            <div className="chat-history">
+              {conversation.messages.map((message, index) => (
+                <div className={`chat-message ${message.role}`} key={index}>
+                  <small>{message.role === "user" ? "You" : "Coach"}</small>
+                  <p>{message.content}</p>
+                </div>
               ))}
-            </ul>
+            </div>
+          ) : (
+            <div className="coach-empty">
+              <p>A good question is the first move.</p>
+              <span>
+                Ask about this exact position. Your conversation stays with it as you explore the
+                game.
+              </span>
+            </div>
           )}
-          {response.suggested_moves.map((move) => (
-            <p className="suggested-move" key={move.uci}>
-              <strong>{move.san}</strong> <code>{move.uci}</code>
-              <small>{move.engine_verified ? "Engine verified" : "Not engine verified"}</small>
-            </p>
-          ))}
-          {response.warning && <p className="honesty-note">{response.warning}</p>}
+          {model.coachBusy && <Spinner label="Looking at the position" />}
         </div>
-      )}
-      {model.coachError && <ErrorNotice>{model.coachError}</ErrorNotice>}
-      <div className="question-suggestions">
-        {questions.map((suggestion) => (
-          <button key={suggestion} onClick={() => update(suggestion)} disabled={model.coachBusy}>
-            {suggestion}
-          </button>
-        ))}
+        {response && (
+          <details className="coach-evidence">
+            <summary className="evidence-heading">
+              <span>Position evidence</span>
+              <Tag>{response.mode === "deterministic" ? "Deterministic" : "Anthropic"}</Tag>
+            </summary>
+            {response.citations.length > 0 && (
+              <ul className="citation-list">
+                {response.citations.map((citation, index) => (
+                  <li key={index}>
+                    <button
+                      className="citation-button"
+                      onClick={() => model.navigate(response.ply)}
+                      title={citation}
+                    >
+                      <span aria-hidden="true">⌖</span> Position {response.ply}
+                      <small>{citation}</small>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {response.suggested_moves.map((move) => (
+              <p className="suggested-move" key={move.uci}>
+                <strong>{move.san}</strong> <code>{move.uci}</code>
+                <small>{move.engine_verified ? "Engine verified" : "Not engine verified"}</small>
+              </p>
+            ))}
+          </details>
+        )}
+        {model.coachError && <ErrorNotice>{model.coachError}</ErrorNotice>}
+        <div className="question-suggestions">
+          {questions.map((suggestion) => (
+            <button key={suggestion} onClick={() => update(suggestion)} disabled={model.coachBusy}>
+              {suggestion}
+            </button>
+          ))}
+        </div>
       </div>
       <form
         className="coach-form"
