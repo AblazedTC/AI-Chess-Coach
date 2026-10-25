@@ -1,0 +1,38 @@
+{
+  "name": "chess-review-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node qa/dev.mjs",
+    "test": "npm run test:root && uv --directory backend run pytest && npm --prefix frontend run test -- --run",
+    "test:root": "node --test scripts/export-chat.test.mjs qa/dev.test.mjs qa/contracts.test.ts",
+    "test:chat": "node --test scripts/export-chat.test.mjs",
+    "chat:export": "node scripts/export-chat.mjs",
+    "api:check": "uv --directory backend run python scripts/export_openapi.py && git diff --exit-code -- backend/openapi.json",
+    "lint": "npm run lint:root && npm run format:check && npm run typecheck && uv --directory backend run ruff check . && uv --directory backend run ruff format --check . && uv --directory backend run mypy app && npm --prefix frontend run lint && npm --prefix frontend run format:check && npm --prefix frontend run typecheck",
+    "lint:root": "eslint qa scripts eslint.config.mjs --max-warnings 0",
+    "typecheck": "tsc --project tsconfig.qa.json --noEmit",
+    "format": "prettier --write \"qa/**/*.{ts,mjs,json}\" \"scripts/**/*.mjs\" \".github/**/*.{yml,yaml}\" package.json package-lock.json eslint.config.mjs tsconfig.qa.json .prettierrc.json",
+    "format:check": "prettier --check \"qa/**/*.{ts,mjs,json}\" \"scripts/**/*.mjs\" \".github/**/*.{yml,yaml}\" package.json package-lock.json eslint.config.mjs tsconfig.qa.json .prettierrc.json",
+    "check:root": "npm run lint:root && npm run format:check && npm run typecheck && npm run test:root",
+    "build": "npm --prefix frontend run build",
+    "test:e2e": "playwright test --config qa/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "22.20.5",
+    "concurrently": "^9.2.1",
+    "eslint": "9.39.5",
+    "globals": "14.0.0",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.0",
+    "zod": "^4.1.12"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  }
+}
