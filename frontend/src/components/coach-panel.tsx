@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { WorkspaceModel } from "@/hooks/use-workspace";
+import { MAX_COACH_CONTENT } from "@/lib/limits";
 import { ErrorNotice, Spinner, Tag } from "./ui";
 
 const questions = [
@@ -119,9 +120,13 @@ export function CoachPanel({ model }: { model: WorkspaceModel }) {
           value={value}
           onChange={(event) => update(event.target.value)}
           placeholder="What can I learn from this position?"
-          maxLength={4000}
+          maxLength={MAX_COACH_CONTENT}
+          aria-describedby="question-limit"
           required
         />
+        <p id="question-limit" className="field-hint">
+          {value.length} / {MAX_COACH_CONTENT.toLocaleString()} characters
+        </p>
         <div className="coach-form-footer">
           <small>
             {mode === "anthropic"

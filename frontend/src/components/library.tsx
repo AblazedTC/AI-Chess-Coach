@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { WorkspaceModel } from "@/hooks/use-workspace";
+import { MAX_INSIGHT_GAMES } from "@/lib/limits";
 import { ErrorNotice, Spinner } from "./ui";
 
 export function Library({ model, openImport }: { model: WorkspaceModel; openImport: () => void }) {
@@ -75,6 +76,12 @@ export function Library({ model, openImport }: { model: WorkspaceModel; openImpo
           Recent games{" "}
           <span className="muted">{model.library.length ? "· select for insights" : ""}</span>
         </p>
+        <p id="insight-selection-help" className="field-hint" role="status">
+          {model.insightIds.length} / {MAX_INSIGHT_GAMES} games selected.
+          {model.insightIds.length >= MAX_INSIGHT_GAMES
+            ? " Limit reached. Unselect a game to choose another."
+            : ` Select up to ${MAX_INSIGHT_GAMES} games for insights.`}
+        </p>
         {!model.library.length && (
           <div className="library-empty">
             <span aria-hidden="true">♙</span>
@@ -99,6 +106,11 @@ export function Library({ model, openImport }: { model: WorkspaceModel; openImpo
                   <input
                     type="checkbox"
                     checked={model.insightIds.includes(game.id)}
+                    disabled={
+                      !model.insightIds.includes(game.id) &&
+                      model.insightIds.length >= MAX_INSIGHT_GAMES
+                    }
+                    aria-describedby="insight-selection-help"
                     onChange={() => model.toggleInsightId(game.id)}
                     aria-label={`Include ${game.white} vs ${game.black} in insights`}
                   />

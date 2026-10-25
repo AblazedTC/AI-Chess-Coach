@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { WorkspaceModel } from "@/hooks/use-workspace";
+import { MAX_PRACTICE_MOVES } from "@/lib/limits";
 import { Board } from "./board";
 import { ErrorNotice, SectionHeading, Spinner, Tag } from "./ui";
 
@@ -52,7 +53,12 @@ export function PracticePanel({ model }: { model: WorkspaceModel }) {
               label="Practice board"
               legalMoves={state.practice?.legal_moves}
               onMove={(move) => void play(move)}
-              disabled={model.practiceBusy || !state.practice || state.practice.is_game_over}
+              disabled={
+                model.practiceBusy ||
+                !state.practice ||
+                state.practice.is_game_over ||
+                model.practiceAtLimit
+              }
             />
           </div>
           <p className="field-hint" id="practice-board-help">
@@ -60,6 +66,12 @@ export function PracticePanel({ model }: { model: WorkspaceModel }) {
             below to underpromote.
           </p>
           {model.practiceBusy && <Spinner label="Checking practice position" />}
+          {model.practiceAtLimit && (
+            <p className="honesty-note" role="status">
+              This variation has reached {MAX_PRACTICE_MOVES} moves. Reset practice to try another
+              line.
+            </p>
+          )}
           {model.practiceError && (
             <ErrorNotice retry={!state.practice ? model.resetPractice : undefined}>
               {model.practiceError}
@@ -86,6 +98,12 @@ export function PracticePanel({ model }: { model: WorkspaceModel }) {
                 autoComplete="off"
                 spellCheck={false}
                 maxLength={5}
+                disabled={
+                  model.practiceBusy ||
+                  !state.practice ||
+                  state.practice.is_game_over ||
+                  model.practiceAtLimit
+                }
                 onChange={(event) => {
                   setMoveKey(context);
                   setMove(event.target.value);
@@ -100,6 +118,7 @@ export function PracticePanel({ model }: { model: WorkspaceModel }) {
                 model.practiceBusy ||
                 !state.practice ||
                 state.practice.is_game_over ||
+                model.practiceAtLimit ||
                 !value.trim()
               }
             >

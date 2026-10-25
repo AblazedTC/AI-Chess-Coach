@@ -69,7 +69,21 @@ export function EnginePanel({ model }: { model: WorkspaceModel }) {
   );
 }
 
-export function FullGameAnalysis({ model }: { model: WorkspaceModel }) {
+export function FullGameAnalysis({
+  model,
+}: {
+  model: Pick<
+    WorkspaceModel,
+    | "state"
+    | "jobStarting"
+    | "analyzeGame"
+    | "jobCancelling"
+    | "cancelAnalysis"
+    | "jobError"
+    | "retryJob"
+    | "navigate"
+  >;
+}) {
   const { state } = model;
   const job = state.job;
   const active = isActiveJob(job?.status);
@@ -136,32 +150,58 @@ export function FullGameAnalysis({ model }: { model: WorkspaceModel }) {
       </div>
       <div
         className="eval-graph"
+        role="region"
+        tabIndex={0}
+        data-shortcuts="ignore"
+        aria-describedby="graph-help"
         aria-label={
           hasStockfish ? "White perspective evaluation graph" : "Demo material balance graph"
         }
       >
-        <div className="graph-zero" />
-        {analyses.length ? (
-          analyses.map((analysis) => (
-            <button
-              key={analysis.ply}
-              className={`graph-column ${analysis.ply === state.ply ? "selected" : ""}`}
-              style={{ flex: 1 }}
-              aria-label={`Position ${analysis.ply}, ${analysis.source === "demo" ? "material" : "evaluation"} ${formatScore(analysis.score)}`}
-              title={`Position ${analysis.ply}: ${formatScore(analysis.score)}`}
-              onClick={() => model.navigate(analysis.ply)}
-            >
-              <span
-                className="graph-fill"
-                style={{ top: `${scoreHeight(analysis)}%`, bottom: 0 }}
-              />
-              <span className="graph-point" style={{ top: `${scoreHeight(analysis)}%` }} />
-            </button>
-          ))
-        ) : (
-          <p className="graph-placeholder">Analyze the game to see the whole picture.</p>
-        )}
+        <div
+          className="graph-track"
+          style={{ minWidth: analyses.length ? `${analyses.length * 24}px` : undefined }}
+        >
+          <div className="graph-zero" aria-hidden="true" />
+          {analyses.length ? (
+            analyses.map((analysis) => {
+              const turn = state.game?.positions.find(
+                (position) => position.ply === analysis.ply,
+              )?.turn;
+              const height = scoreHeight(analysis, turn);
+              return (
+                <button
+                  key={analysis.ply}
+                  className={`graph-column ${analysis.ply === state.ply ? "selected" : ""}`}
+                  aria-label={`Position ${analysis.ply}, ${analysis.source === "demo" ? "material" : "evaluation"} ${formatScore(analysis.score)}`}
+                  title={`Position ${analysis.ply}: ${formatScore(analysis.score)}`}
+                  onClick={() => model.navigate(analysis.ply)}
+                >
+                  {height === null ? (
+                    <span
+                      className="graph-unknown"
+                      aria-label="Mate outcome unavailable without position context"
+                    >
+                      ?
+                    </span>
+                  ) : (
+                    <>
+                      <span className="graph-fill" style={{ top: `${height}%`, bottom: 0 }} />
+                      <span className="graph-point" style={{ top: `${height}%` }} />
+                    </>
+                  )}
+                </button>
+              );
+            })
+          ) : (
+            <p className="graph-placeholder">Analyze the game to see the whole picture.</p>
+          )}
+        </div>
       </div>
+      <p id="graph-help" className="field-hint">
+        Swipe or scroll horizontally to explore all positions. Tab to a position and press Enter to
+        select.
+      </p>
       <div className="graph-footer">
         <small>Opening</small>
         <small>Latest analyzed position</small>

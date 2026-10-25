@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
 import { analysis, coach, game, job, practice } from "@/test/fixtures";
 import { useWorkspace } from "./use-workspace";
-import type { CoachResponse, GameDetail, Insights } from "@/lib/types";
+import type { AnalysisJob, CoachResponse, GameDetail, Insights } from "@/lib/types";
+import { MAX_COACH_CONTENT, MAX_INSIGHT_GAMES, MAX_PRACTICE_MOVES } from "@/lib/limits";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -27,6 +28,7 @@ beforeEach(() => {
     position_key: `test-${ply}`,
   }));
   vi.spyOn(api, "practice").mockResolvedValue(practice);
+  vi.spyOn(api, "cancelJob").mockResolvedValue({ ...job, status: "cancelled" });
 });
 
 describe("request lifecycle", () => {
@@ -151,7 +153,6 @@ describe("request lifecycle", () => {
   });
   it("cancels full-game analysis without losing completed positions", async () => {
     vi.spyOn(api, "startJob").mockResolvedValue(job);
-    vi.spyOn(api, "cancelJob").mockResolvedValue({ ...job, status: "cancelled" });
     const { result } = renderHook(useWorkspace);
     await act(async () => {
       await result.current.loadDemo();
@@ -164,6 +165,197 @@ describe("request lifecycle", () => {
     });
     expect(result.current.state.job?.status).toBe("cancelled");
     expect(result.current.state.analyses[0]).toEqual(analysis);
+  });
+  it("cancels a job started while another game is still loading", async () => {
+    const nextGame = deferred<GameDetail>();
+    vi.spyOn(api, "game").mockReturnValue(nextGame.promise);
+    vi.spyOn(api, "startJob").mockResolvedValue(job);
+    const { result } = renderHook(useWorkspace);
+    await act(async () => {
+      await result.current.loadDemo();
+    });
+    let loading!: Promise<boolean>;
+    act(() => {
+      loading = result.current.loadGame("next");
+    });
+    await act(async () => {
+      await result.current.analyzeGame();
+    });
+    expect(result.current.state.job?.id).toBe(job.id);
+    await act(async () => {
+      nextGame.resolve({ ...game, id: "next" });
+      await loading;
+    });
+    expect(api.cancelJob).toHaveBeenCalledWith(job.id);
+    expect(result.current.state.game?.id).toBe("next");
+    expect(result.current.state.job).toBeNull();
+  });
+  it("retrieves and cancels a creation that settles after switching games", async () => {
+    const creation = deferred<AnalysisJob>();
+    vi.spyOn(api, "startJob").mockReturnValue(creation.promise);
+    vi.spyOn(api, "game").mockResolvedValue({ ...game, id: "next" });
+    const { result } = renderHook(useWorkspace);
+    await act(async () => {
+      await result.current.loadDemo();
+    });
+    let starting!: Promise<void>;
+    act(() => {
+      starting = result.current.analyzeGame();
+    });
+    await act(async () => {
+      await result.current.loadGame("next");
+    });
+    await act(async () => {
+      creation.resolve(job);
+      await starting;
+    });
+    expect(api.startJob).toHaveBeenCalledWith(game.id);
+    expect(api.cancelJob).toHaveBeenCalledWith(job.id);
+    expect(result.current.state.job).toBeNull();
+    expect(result.current.jobStarting).toBe(false);
+  });
+  it("cancels a creation that settles after unmount without aborting its POST", async () => {
+    const creation = deferred<AnalysisJob>();
+    vi.spyOn(api, "startJob").mockReturnValue(creation.promise);
+    const { result, unmount } = renderHook(useWorkspace);
+    await act(async () => {
+      await result.current.loadDemo();
+    });
+    let starting!: Promise<void>;
+    act(() => {
+      starting = result.current.analyzeGame();
+    });
+    unmount();
+    await act(async () => {
+      creation.resolve(job);
+      await starting;
+    });
+    expect(api.startJob).toHaveBeenCalledWith(game.id);
+    expect(api.cancelJob).toHaveBeenCalledWith(job.id);
+  });
+  it("keeps a newer creation pending when an old creation settles", async () => {
+    const oldCreation = deferred<AnalysisJob>();
+    const newCreation = deferred<AnalysisJob>();
+    vi.spyOn(api, "startJob")
+      .mockReturnValueOnce(oldCreation.promise)
+      .mockReturnValueOnce(newCreation.promise);
+    vi.spyOn(api, "game").mockResolvedValue({ ...game, id: "next" });
+    const { result } = renderHook(useWorkspace);
+    await act(async () => {
+      await result.current.loadDemo();
+    });
+    let oldStarting!: Promise<void>;
+    act(() => {
+      oldStarting = result.current.analyzeGame();
+    });
+    await act(async () => {
+      await result.current.loadGame("next");
+    });
+    let newStarting!: Promise<void>;
+    act(() => {
+      newStarting = result.current.analyzeGame();
+    });
+    await act(async () => {
+      oldCreation.resolve(job);
+      await oldStarting;
+    });
+    expect(result.current.jobStarting).toBe(true);
+    await act(async () => {
+      newCreation.resolve({ ...job, id: "new-job", game_id: "next" });
+      await newStarting;
+    });
+    expect(result.current.state.job?.id).toBe("new-job");
+    expect(result.current.jobStarting).toBe(false);
+  });
+  it("caps even batched insight selections at ten before making a request", async () => {
+    vi.spyOn(api, "insights").mockResolvedValue({
+      games_analyzed: MAX_INSIGHT_GAMES,
+      summary: "Limited facts",
+      themes: [],
+      limitations: [],
+    });
+    const { result } = renderHook(useWorkspace);
+    act(() => {
+      for (let index = 0; index < 12; index++) result.current.toggleInsightId(`game-${index}`);
+    });
+    expect(result.current.insightIds).toHaveLength(MAX_INSIGHT_GAMES);
+    await act(async () => {
+      await result.current.getInsights();
+    });
+    expect(api.insights).toHaveBeenCalledWith(
+      Array.from({ length: 10 }, (_, index) => `game-${index}`),
+      expect.any(AbortSignal),
+    );
+    act(() => result.current.toggleInsightId("game-0"));
+    act(() => result.current.toggleInsightId("game-11"));
+    expect(result.current.insightIds).toHaveLength(MAX_INSIGHT_GAMES);
+    expect(result.current.insightIds).toContain("game-11");
+  });
+  it("rejects oversized coach questions locally but accepts a trimmed 2000-character question", async () => {
+    vi.spyOn(api, "coach").mockResolvedValue(coach);
+    const { result } = renderHook(useWorkspace);
+    await act(async () => {
+      await result.current.loadDemo();
+    });
+    await act(async () => {
+      await result.current.askCoach("x".repeat(MAX_COACH_CONTENT + 1));
+    });
+    expect(api.coach).not.toHaveBeenCalled();
+    expect(result.current.coachError).toMatch(/2,000 characters or fewer/);
+    await act(async () => {
+      await result.current.askCoach(`  ${"x".repeat(MAX_COACH_CONTENT)}  `);
+    });
+    expect(api.coach).toHaveBeenCalledWith(
+      game.id,
+      0,
+      "x".repeat(MAX_COACH_CONTENT),
+      [],
+      expect.any(AbortSignal),
+    );
+  });
+  it("bounds generated assistant history while retaining the full response for display", async () => {
+    const longResponse = "Evidence ".repeat(500);
+    vi.spyOn(api, "coach").mockResolvedValue({ ...coach, message: longResponse });
+    const { result } = renderHook(useWorkspace);
+    await act(async () => {
+      await result.current.loadDemo();
+    });
+    await act(async () => {
+      await result.current.askCoach("Explain");
+    });
+    expect(result.current.conversation?.response?.message).toBe(longResponse);
+    await act(async () => {
+      await result.current.askCoach("What next?");
+    });
+    const sentHistory = vi.mocked(api.coach).mock.calls[1][3];
+    expect(sentHistory[1].content).toHaveLength(MAX_COACH_CONTENT);
+    expect(sentHistory.every((message) => message.content.length <= MAX_COACH_CONTENT)).toBe(true);
+  });
+  it("allows the hundredth practice move, rejects the next locally, and allows reset", async () => {
+    const moves = Array.from({ length: MAX_PRACTICE_MOVES - 1 }, () => "g1f3");
+    vi.mocked(api.practice)
+      .mockResolvedValueOnce({ ...practice, moves })
+      .mockResolvedValueOnce({ ...practice, moves: [...moves, "e2e4"] })
+      .mockResolvedValue(practice);
+    const { result } = renderHook(useWorkspace);
+    await act(async () => {
+      await result.current.loadDemo();
+    });
+    act(() => result.current.openPractice());
+    await waitFor(() => expect(result.current.state.practice?.moves).toHaveLength(99));
+    await act(async () => {
+      await result.current.playPractice("e2e4");
+    });
+    expect(vi.mocked(api.practice).mock.calls[1][2]).toHaveLength(MAX_PRACTICE_MOVES);
+    expect(result.current.practiceAtLimit).toBe(true);
+    await act(async () => {
+      await result.current.playPractice("e2e4");
+    });
+    expect(api.practice).toHaveBeenCalledTimes(2);
+    expect(result.current.practiceError).toMatch(/100 moves.*Reset practice/);
+    act(() => result.current.resetPractice());
+    await waitFor(() => expect(result.current.state.practice?.moves).toHaveLength(0));
+    expect(result.current.practiceAtLimit).toBe(false);
   });
   it("clears a failed search and prevents a slow older username from replacing it", async () => {
     const first = deferred<{ games: [] }>();

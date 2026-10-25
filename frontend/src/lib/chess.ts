@@ -1,4 +1,4 @@
-import type { GameDetail, GameSummary, PositionAnalysis, Score } from "./types";
+import type { GameDetail, GameSummary, Move, Position, PositionAnalysis, Score } from "./types";
 
 export const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -70,10 +70,35 @@ export function formatScore(score: Score): string {
   return `${score.value > 0 ? "+" : ""}${(score.value / 100).toFixed(2)}`;
 }
 
-export function scoreHeight(analysis: PositionAnalysis): number {
+export function scoreHeight(analysis: PositionAnalysis, turn?: Position["turn"]): number | null {
+  if (analysis.score.kind === "mate" && analysis.score.value === 0) {
+    return turn === "white" ? 95 : turn === "black" ? 5 : null;
+  }
   const value =
     analysis.score.kind === "mate" ? Math.sign(analysis.score.value) * 1000 : analysis.score.value;
   return Math.max(5, Math.min(95, 50 - value / 20));
+}
+
+export function moveRows(moves: Move[], startingFen: string) {
+  const fields = startingFen.split(/\s+/);
+  let blackToMove = fields[1] === "b";
+  let fullmove = Math.max(1, Number.parseInt(fields[5], 10) || 1);
+  const rows: { fullmove: number; white: Move | null; black: Move | null }[] = [];
+  for (const move of moves) {
+    let row = rows.at(-1);
+    if (!row || row.fullmove !== fullmove) {
+      row = { fullmove, white: null, black: null };
+      rows.push(row);
+    }
+    if (blackToMove) {
+      row.black = move;
+      fullmove++;
+    } else {
+      row.white = move;
+    }
+    blackToMove = !blackToMove;
+  }
+  return rows;
 }
 
 export function summaryOf(game: GameDetail): GameSummary {
@@ -91,7 +116,11 @@ export function summaryOf(game: GameDetail): GameSummary {
 export function isTypingTarget(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&
-    (Boolean(target.closest("input, textarea, select, a, [role='dialog'], dialog")) ||
+    (Boolean(
+      target.closest(
+        "input, textarea, select, a, [role='dialog'], dialog, [data-shortcuts='ignore']",
+      ),
+    ) ||
       (Boolean(target.closest("button")) && !target.closest("[data-move-navigation]")) ||
       Boolean(target.isContentEditable))
   );
