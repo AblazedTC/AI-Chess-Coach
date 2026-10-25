@@ -11,6 +11,48 @@ import {
   readJson,
 } from "./contracts";
 
+test("default SVG pieces render in preview, replay, flipped boards, and practice", async ({
+  page,
+  api,
+}) => {
+  await page.goto("/");
+  const preview = page.locator(".welcome-board .chess-board");
+  await expect(preview.locator(".piece svg").first()).toBeVisible();
+  const game = await loadDemo(page, api);
+  const board = page.getByRole("group", { name: "Chess board", exact: true });
+  await expect(board.locator(".piece svg")).toHaveCount(32);
+  const avatars = page.locator(".player-avatar .piece");
+  await expect(avatars.first()).toHaveAttribute("data-piece", "bK");
+  await expect(avatars.last()).toHaveAttribute("data-piece", "wK");
+  for (const piece of ["wK", "wQ", "wR", "wB", "wN", "wP", "bK", "bQ", "bR", "bB", "bN", "bP"]) {
+    const svg = board.locator(`[data-piece="${piece}"] svg`).first();
+    await expect(svg).toBeVisible();
+    const bounds = await svg.boundingBox();
+    if (!bounds) throw new Error(`SVG piece ${piece} has no bounds`);
+    expect(bounds.width).toBeGreaterThan(24);
+    expect(Math.abs(bounds.width - bounds.height)).toBeLessThan(1);
+  }
+  await page.getByRole("button", { name: "Flip board", exact: true }).click();
+  await expect(board.locator(".square").first().locator(".piece")).toHaveAttribute(
+    "data-piece",
+    "wR",
+  );
+  await expectPosition(page, game, 0);
+  await expect(avatars.first()).toHaveAttribute("data-piece", "wK");
+  await expect(avatars.last()).toHaveAttribute("data-piece", "bK");
+  await page.getByRole("tab", { name: "Practice", exact: true }).click();
+  await page.getByRole("button", { name: "Practice", exact: true }).click();
+  const practiceBoard = page.getByRole("group", { name: "Practice board", exact: true });
+  await expect(practiceBoard.locator(".piece svg")).toHaveCount(32);
+  await expect(practiceBoard.getByRole("button", { name: "e2, white pawn" })).toBeEnabled();
+  await practiceBoard.getByRole("button", { name: "e2, white pawn" }).click();
+  await practiceBoard.getByRole("button", { name: "e4, empty" }).click();
+  await expect(
+    practiceBoard.getByRole("button", { name: "e4, white pawn" }).locator(".piece"),
+  ).toHaveAttribute("data-piece", "wP");
+  await expectPosition(page, game, 0);
+});
+
 test("offline demo navigation keeps board FEN and move position consistent", async ({
   page,
   api,

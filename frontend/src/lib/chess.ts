@@ -2,25 +2,24 @@ import type { GameDetail, GameSummary, Move, Position, PositionAnalysis, Score }
 
 export const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-const pieces: Record<string, { symbol: string; name: string }> = {
-  K: { symbol: "♚", name: "white king" },
-  Q: { symbol: "♛", name: "white queen" },
-  R: { symbol: "♜", name: "white rook" },
-  B: { symbol: "♝", name: "white bishop" },
-  N: { symbol: "♞", name: "white knight" },
-  P: { symbol: "♟", name: "white pawn" },
-  k: { symbol: "♚", name: "black king" },
-  q: { symbol: "♛", name: "black queen" },
-  r: { symbol: "♜", name: "black rook" },
-  b: { symbol: "♝", name: "black bishop" },
-  n: { symbol: "♞", name: "black knight" },
-  p: { symbol: "♟", name: "black pawn" },
+const pieceNames: Record<string, string> = {
+  K: "white king",
+  Q: "white queen",
+  R: "white rook",
+  B: "white bishop",
+  N: "white knight",
+  P: "white pawn",
+  k: "black king",
+  q: "black queen",
+  r: "black rook",
+  b: "black bishop",
+  n: "black knight",
+  p: "black pawn",
 };
 
 export interface Square {
   square: string;
   piece: string | null;
-  symbol: string;
   name: string;
   light: boolean;
 }
@@ -35,12 +34,10 @@ export function boardSquares(fen: string, flipped = false): Square[] {
         file += Number(token);
       } else {
         const square = `${"abcdefgh"[file]}${rank}`;
-        const piece = pieces[token];
         squares.push({
           square,
           piece: token,
-          symbol: piece?.symbol || "",
-          name: piece?.name || "",
+          name: pieceNames[token] || "",
           light: (file + rank) % 2 === 0,
         });
         file++;
@@ -52,7 +49,6 @@ export function boardSquares(fen: string, flipped = false): Square[] {
         squares.push({
           square,
           piece: null,
-          symbol: "",
           name: "empty",
           light: (index + rank) % 2 === 0,
         });

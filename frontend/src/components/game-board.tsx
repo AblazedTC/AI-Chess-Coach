@@ -4,6 +4,7 @@ import { useEffect, useRef, type CSSProperties } from "react";
 import type { WorkspaceModel } from "@/hooks/use-workspace";
 import { formatScore, moveRows, scoreHeight } from "@/lib/chess";
 import { Board } from "./board";
+import { ChessPiece } from "./chess-piece";
 import { Tag } from "./ui";
 
 export function GameBoard({
@@ -31,7 +32,7 @@ export function GameBoard({
     <section className="board-panel" aria-label="Game replay">
       <div className="player-bar">
         <div className="player-avatar" aria-hidden="true">
-          {state.flipped ? "♔" : "♚"}
+          <ChessPiece piece={state.flipped ? "K" : "k"} />
         </div>
         <div>
           <strong>{topName}</strong>
@@ -55,7 +56,7 @@ export function GameBoard({
       </div>
       <div className="player-bar bottom-player">
         <div className="player-avatar" aria-hidden="true">
-          {state.flipped ? "♚" : "♔"}
+          <ChessPiece piece={state.flipped ? "k" : "K"} />
         </div>
         <div>
           <strong>{bottomName}</strong>

@@ -869,22 +869,17 @@ code {
 }
 .piece {
   position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
   z-index: 1;
-  font-family: "Segoe UI Symbol", "Arial Unicode MS", "DejaVu Sans", sans-serif;
-  font-size: 9.7cqw;
-  font-weight: 400;
-  line-height: 1;
   user-select: none;
-  transform: translateY(-1%);
+  pointer-events: none;
 }
-.black-piece .piece {
-  color: #252320;
-  text-shadow: 0 1px 1px #fff7;
-}
-.white-piece .piece {
-  color: #fffef0;
-  -webkit-text-stroke: 1px #34312c;
-  text-shadow: 0 2px 2px #0005;
+.piece svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 .rank-label,
 .file-label {
@@ -938,7 +933,7 @@ code {
   background: #1c442d70;
   pointer-events: none;
 }
-.legal-target:has(.piece:not(:empty))::after {
+.legal-target:has(.piece)::after {
   width: 86%;
   height: 86%;
   border: 4px solid #305e3b;

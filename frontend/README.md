@@ -1,8 +1,8 @@
 # Chess Coach frontend
 
 A responsive, accessible chess study workspace built with Next.js App Router,
-React, and strict TypeScript. Uses system fonts and Unicode pieces; builds never
-download fonts or require external services.
+React, and strict TypeScript. Uses system fonts and react-chessboard's default SVG
+pieces, bundled locally; builds never download fonts or require external services.
 
 ## Run
 
