@@ -216,7 +216,9 @@ def test_cors(client: TestClient) -> None:
     assert rejected.json()["error"]["code"] == "cors_rejected"
 
 
-def test_unexpected_exception_sanitized(settings: Settings) -> None:
+def test_unexpected_exception_sanitized(
+    settings: Settings, caplog: pytest.LogCaptureFixture
+) -> None:
     app = create_app(settings)
 
     @app.get("/explode")
@@ -228,3 +230,6 @@ def test_unexpected_exception_sanitized(settings: Settings) -> None:
         assert response.status_code == 500
         assert "credentials" not in response.text
         assert response.json()["error"]["code"] == "internal_error"
+        assert response.json()["request_id"] in caplog.text
+        assert "RuntimeError" in caplog.text
+        assert "credentials" not in caplog.text

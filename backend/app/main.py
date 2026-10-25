@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -42,6 +43,7 @@ from app.models import (
 )
 
 request_id_context: ContextVar[str] = ContextVar("request_id", default="")
+logger = logging.getLogger(__name__)
 
 
 def error_response(status: int, code: str, message: str, request_id: str) -> JSONResponse:
@@ -149,8 +151,13 @@ class RequestLimits:
                 await error_response(408, "request_timeout", "Request body timed out.", request_id)(
                     scope, receive, with_id
                 )
-        except Exception:
+        except Exception as exc:
             if not started:
+                logger.error(
+                    "Unexpected request failure request_id=%s error_type=%s",
+                    request_id,
+                    type(exc).__name__,
+                )
                 await error_response(
                     500, "internal_error", "An unexpected server error occurred.", request_id
                 )(scope, receive, with_id)
@@ -238,6 +245,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(Exception)
     async def unexpected(request: Request, exc: Exception) -> JSONResponse:
+        logger.error(
+            "Unexpected request failure request_id=%s error_type=%s",
+            request.state.request_id,
+            type(exc).__name__,
+        )
         return error_response(
             500, "internal_error", "An unexpected server error occurred.", request.state.request_id
         )

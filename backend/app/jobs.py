@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 import uuid
 from collections import OrderedDict
@@ -10,6 +11,7 @@ from app.games import GameStore
 from app.models import AnalysisJob
 
 TERMINAL = {"completed", "cancelled", "failed"}
+logger = logging.getLogger(__name__)
 
 
 class Jobs:
@@ -72,9 +74,11 @@ class Jobs:
         except AppError as exc:
             job.status = "failed"
             job.error = exc.message
-        except Exception:
+            logger.warning("Analysis job failed job_id=%s code=%s", job.id, exc.code)
+        except Exception as exc:
             job.status = "failed"
             job.error = "Analysis could not be completed."
+            logger.error("Analysis job failed job_id=%s error_type=%s", job.id, type(exc).__name__)
         finally:
             self.finished[job.id] = time.monotonic()
 

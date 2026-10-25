@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import re
 import time
 from typing import Any
@@ -15,6 +16,7 @@ from app.models import GameList, GameSummary, Player
 
 _USERNAME = re.compile(r"^[A-Za-z0-9_-]{1,25}$")
 _ARCHIVE = re.compile(r"^https://api\.chess\.com/pub/player/[a-z0-9_-]{1,25}/games/\d{4}/\d{2}$")
+logger = logging.getLogger(__name__)
 
 
 def username_checked(username: str) -> str:
@@ -160,7 +162,8 @@ class ChessCom:
                     continue
                 try:
                     game = self.games.import_pgn(pgn)
-                except AppError:
+                except AppError as exc:
+                    logger.warning("Skipped invalid Chess.com game code=%s", exc.code)
                     continue
                 if game.id in seen:
                     continue
