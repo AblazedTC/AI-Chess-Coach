@@ -44,6 +44,73 @@ async def test_job_cancel_active_and_immediate(
     await jobs.close()
 
 
+async def test_cancelling_job_retains_capacity_until_cleanup_finishes(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.max_jobs = settings.max_active_jobs = 1
+    games, analyzer, jobs = setup(settings)
+    first = games.import_pgn("1. e4 *")
+    other = games.import_pgn("1. d4 *")
+    entered = asyncio.Event()
+    cleaning = asyncio.Event()
+    release = asyncio.Event()
+
+    async def blocked(*_: object) -> PositionAnalysis:
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cleaning.set()
+            await release.wait()
+        raise AssertionError("unreachable")
+
+    monkeypatch.setattr(analyzer, "analyze", blocked)
+    job = jobs.create(first.id)
+    await entered.wait()
+    cancellation = asyncio.create_task(jobs.cancel(job.id))
+    try:
+        await cleaning.wait()
+        with pytest.raises(AppError) as caught:
+            jobs.create(other.id)
+        assert caught.value.status == 429
+        assert jobs.get(job.id).id == job.id
+    finally:
+        release.set()
+        result = await cancellation
+        await jobs.close()
+    assert result.status == "cancelled"
+
+
+async def test_cancel_receipt_survives_eviction_after_task_finishes(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.max_jobs = settings.max_active_jobs = 1
+    games, analyzer, jobs = setup(settings)
+    first = games.import_pgn("1. e4 *")
+    other = games.import_pgn("1. d4 *")
+    entered = asyncio.Event()
+
+    async def blocked(*_: object) -> PositionAnalysis:
+        entered.set()
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+    monkeypatch.setattr(analyzer, "analyze", blocked)
+    job = jobs.create(first.id)
+    await entered.wait()
+    replacements = []
+    jobs.tasks[job.id].add_done_callback(lambda _: replacements.append(jobs.create(other.id)))
+    try:
+        result = await jobs.cancel(job.id)
+        assert result.id == job.id
+        assert result.status == "cancelled"
+        assert len(replacements) == 1
+        with pytest.raises(AppError):
+            jobs.get(job.id)
+    finally:
+        await jobs.close()
+
+
 async def test_job_limit_terminal_eviction(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:

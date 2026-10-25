@@ -28,7 +28,9 @@ def practice(games: GameStore, request: PracticeRequest) -> PracticeResponse:
         fen=board.fen(),
         position_key=position_key(board),
         moves=request.moves,
-        legal_moves=sorted(move.uci() for move in board.legal_moves),
+        legal_moves=sorted(move.uci() for move in board.legal_moves)
+        if not board.is_game_over()
+        else [],
         is_game_over=board.is_game_over(),
     )
 
