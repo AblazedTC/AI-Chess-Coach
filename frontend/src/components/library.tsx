@@ -30,14 +30,16 @@ export function Library({
           <small>YOUR PERSONAL STUDY SPACE</small>
         </span>
       </a>
-      <button
-        className="button secondary library-toggle"
-        aria-expanded={expanded}
-        aria-controls="library-content"
-        onClick={() => setExpanded(!expanded)}
-      >
-        Game library <span aria-hidden="true">{expanded ? "−" : "+"}</span>
-      </button>
+      {model.state.game && (
+        <button
+          className="button secondary library-toggle"
+          aria-expanded={expanded}
+          aria-controls="library-content"
+          onClick={() => setExpanded(!expanded)}
+        >
+          Game library <span aria-hidden="true">{expanded ? "−" : "+"}</span>
+        </button>
+      )}
       <div id="library-content" className={`library-content ${expanded ? "is-expanded" : ""}`}>
         <div className="sidebar-section">
           <p className="eyebrow">Your workspace</p>
@@ -49,7 +51,6 @@ export function Library({
               event.preventDefault();
               onView("review");
               setExpanded(false);
-              document.getElementById("main-content")?.focus();
             }}
           >
             <span aria-hidden="true">▦</span> Game review <span className="nav-dot" />
@@ -62,7 +63,6 @@ export function Library({
               event.preventDefault();
               onView("insights");
               setExpanded(false);
-              document.getElementById("panel-insights")?.focus();
             }}
           >
             <span aria-hidden="true">↗</span> Insights

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { CoachPanel } from "./coach-panel";
@@ -20,7 +20,14 @@ export function Workspace() {
   const layout = useResponsiveLayout();
   const [importOpen, setImportOpen] = useState(false);
   const [requestedTool, setTool] = useState<Tool>("moves");
+  const [navigation, setNavigation] = useState<{ view: "review" | "insights" } | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (navigation)
+      document
+        .getElementById(navigation.view === "insights" ? "panel-insights" : "main-content")
+        ?.focus();
+  }, [navigation]);
   const tool =
     (requestedTool === "engine" && layout !== "narrow") ||
     (requestedTool === "coach" && layout === "three")
@@ -44,7 +51,14 @@ export function Workspace() {
         model={model}
         openImport={() => setImportOpen(true)}
         insightsActive={Boolean(game) && tool === "insights"}
-        onView={game ? (view) => setTool(view === "insights" ? "insights" : "moves") : undefined}
+        onView={
+          game
+            ? (view) => {
+                setTool(view === "insights" ? "insights" : "moves");
+                setNavigation({ view });
+              }
+            : undefined
+        }
       />
       <main id="main-content" className="main-content" tabIndex={-1}>
         <header className="workspace-header">

@@ -210,6 +210,42 @@ test("keyboard navigation works without hijacking typing in form fields", async 
   await expectPosition(page, game, 1);
 });
 
+for (const width of [1280, 390]) {
+  test(`${width}px sidebar navigation focuses the visible tool after rendering`, async ({
+    page,
+    api,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const game = await loadDemo(page, api);
+    const library = page.getByRole("complementary", { name: "Game library", exact: true });
+    const insights = page.getByRole("tabpanel", { name: "Insights", exact: true });
+    const openLibrary = async () => {
+      if (width < 1024)
+        await library.getByRole("button", { name: "Game library", exact: true }).click();
+    };
+    for (let visit = 0; visit < 2; visit++) {
+      await openLibrary();
+      await library.getByRole("link", { name: "Insights", exact: true }).focus();
+      await page.keyboard.press("Enter");
+      await expect(insights).toBeVisible();
+      await expect(insights).toBeFocused();
+      await expect(page.getByRole("tab", { name: "Insights", exact: true })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+    }
+    await openLibrary();
+    await library.getByRole("link", { name: "Game review", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("main")).toBeFocused();
+    await expect(page.getByRole("tab", { name: "Moves", exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expectPosition(page, game, 0);
+  });
+}
+
 test("loaded demo has no serious or critical accessibility violations", async ({ page, api }) => {
   await loadDemo(page, api);
   const results = await new AxeBuilder({ page })

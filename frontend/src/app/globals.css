@@ -1831,9 +1831,6 @@ progress::-moz-progress-bar {
   .review-workspace .library-content:not(.is-expanded) {
     display: none;
   }
-  .library-content > .sidebar-section:first-child {
-    display: none;
-  }
   .library-content > .sidebar-section {
     margin-block: 12px 0;
   }
