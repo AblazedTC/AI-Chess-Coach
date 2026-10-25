@@ -5,6 +5,7 @@ import { analysis, coach, game, job, practice } from "@/test/fixtures";
 import { useWorkspace } from "./use-workspace";
 import type { AnalysisJob, CoachResponse, GameDetail, Insights } from "@/lib/types";
 import { MAX_COACH_CONTENT, MAX_INSIGHT_GAMES, MAX_PRACTICE_MOVES } from "@/lib/limits";
+import { summaryOf } from "@/lib/chess";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -32,6 +33,110 @@ beforeEach(() => {
 });
 
 describe("request lifecycle", () => {
+  it("clears hidden insight selections when a search replaces the library", async () => {
+    vi.spyOn(api, "player").mockResolvedValue({
+      username: "new-player",
+      name: null,
+      rating: null,
+      avatar: null,
+    });
+    const games = Array.from({ length: 20 }, (_, index) => ({
+      ...summaryOf(game),
+      id: `new-${index}`,
+    }));
+    vi.spyOn(api, "games").mockResolvedValue({ games });
+    const { result } = renderHook(useWorkspace);
+    await act(async () => {
+      await result.current.loadDemo();
+    });
+    act(() => {
+      for (let index = 1; index < MAX_INSIGHT_GAMES; index++)
+        result.current.toggleInsightId(`old-${index}`);
+    });
+    expect(result.current.insightIds).toHaveLength(MAX_INSIGHT_GAMES);
+    await act(async () => {
+      await result.current.search("new-player");
+    });
+    expect(result.current.insightIds).toEqual([]);
+    act(() => result.current.toggleInsightId("new-0"));
+    expect(result.current.insightIds).toEqual(["new-0"]);
+  });
+  it("preserves insights and selection while following citations across games", async () => {
+    const other = { ...game, id: "another-game" };
+    vi.spyOn(api, "game").mockImplementation(async (id) => (id === game.id ? game : other));
+    const report: Insights = {
+      games_analyzed: 2,
+      summary: "Two-game report",
+      themes: [
+        {
+          name: "Captures",
+          description: "Observed captures",
+          count: 2,
+          supporting_positions: [
+            { game_id: game.id, ply: 2, position_key: "test-2" },
+            { game_id: other.id, ply: 1, position_key: "test-1" },
+          ],
+        },
+      ],
+      limitations: [],
+    };
+    vi.spyOn(api, "insights").mockResolvedValue(report);
+    const { result } = renderHook(useWorkspace);
+    await act(async () => {
+      await result.current.loadDemo();
+    });
+    act(() => result.current.toggleInsightId(other.id));
+    await act(async () => {
+      await result.current.getInsights();
+    });
+    act(() =>
+      result.current.selectCitation({
+        game_id: other.id,
+        ply: 1,
+        position_key: "test-1",
+      }),
+    );
+    await waitFor(() => expect(result.current.state.game?.id).toBe(other.id));
+    expect(result.current.state.ply).toBe(1);
+    expect(result.current.insights).toEqual(report);
+    expect(result.current.insightIds).toEqual([game.id, other.id]);
+    act(() => result.current.selectCitation({ game_id: game.id, ply: 2, position_key: "test-2" }));
+    await waitFor(() => expect(result.current.state.game?.id).toBe(game.id));
+    expect(result.current.state.ply).toBe(2);
+    expect(result.current.insights).toEqual(report);
+    await act(async () => {
+      await result.current.loadGame(other.id);
+    });
+    expect(result.current.insights).toBeNull();
+    expect(result.current.insightIds).toEqual([other.id]);
+  });
+  it("discards an old insights response after a search replaces its source games", async () => {
+    const pending = deferred<Insights>();
+    vi.spyOn(api, "insights").mockReturnValue(pending.promise);
+    vi.spyOn(api, "player").mockResolvedValue({
+      username: "new-player",
+      name: null,
+      rating: null,
+      avatar: null,
+    });
+    vi.spyOn(api, "games").mockResolvedValue({ games: [] });
+    const { result } = renderHook(useWorkspace);
+    await act(async () => {
+      await result.current.loadDemo();
+    });
+    let response!: Promise<void>;
+    act(() => {
+      response = result.current.getInsights();
+    });
+    await act(async () => {
+      await result.current.search("new-player");
+      pending.resolve({ games_analyzed: 1, summary: "Old", themes: [], limitations: [] });
+      await response;
+    });
+    expect(result.current.insights).toBeNull();
+    expect(result.current.insightIds).toEqual([]);
+    expect(result.current.insightsLoading).toBe(false);
+  });
   it("does not let an older load overwrite a newer selected game", async () => {
     const old = deferred<GameDetail>();
     vi.mocked(api.demo).mockReturnValueOnce(old.promise);
