@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { boardSquares } from "@/lib/chess";
+import { ChessPiece } from "./chess-piece";
 
 interface BoardProps {
   fen: string;
@@ -55,7 +56,6 @@ export function Board({
         const classes = [
           "square",
           item.light ? "square-light" : "square-dark",
-          item.piece && item.piece === item.piece.toUpperCase() ? "white-piece" : "black-piece",
           lastMove?.from_square === item.square || lastMove?.to_square === item.square
             ? "last-move"
             : "",
@@ -76,11 +76,7 @@ export function Board({
             )}
           </>
         );
-        const piece = (
-          <span className="piece" aria-hidden="true">
-            {item.symbol}
-          </span>
-        );
+        const piece = item.piece ? <ChessPiece piece={item.piece} square={item.square} /> : null;
         return onMove ? (
           <div key={item.square} className={classes}>
             {coordinates}

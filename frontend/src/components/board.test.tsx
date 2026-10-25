@@ -4,6 +4,35 @@ import { START_FEN } from "@/lib/chess";
 import { Board } from "./board";
 
 describe("Board", () => {
+  it.each([
+    ["e1", "white king", "wK"],
+    ["d1", "white queen", "wQ"],
+    ["a1", "white rook", "wR"],
+    ["c1", "white bishop", "wB"],
+    ["b1", "white knight", "wN"],
+    ["a2", "white pawn", "wP"],
+    ["e8", "black king", "bK"],
+    ["d8", "black queen", "bQ"],
+    ["a8", "black rook", "bR"],
+    ["c8", "black bishop", "bB"],
+    ["b8", "black knight", "bN"],
+    ["a7", "black pawn", "bP"],
+  ])("renders react-chessboard's %s %s artwork as %s", (square, name, type) => {
+    render(<Board fen={START_FEN} />);
+    const cell = screen.getByRole("img", { name: `${square}, ${name}` });
+    const piece = cell.querySelector(".piece");
+    expect(piece).toHaveAttribute("data-piece", type);
+    expect(piece).toHaveAttribute("aria-hidden", "true");
+    expect(piece?.querySelector("svg")).toHaveAttribute("viewBox", "0 0 45 45");
+    expect(piece?.querySelector("svg path")).not.toBeNull();
+    expect(piece?.textContent).toBe("");
+  });
+
+  it("does not render artwork on empty squares", () => {
+    render(<Board fen={START_FEN} />);
+    expect(screen.getByRole("img", { name: "e4, empty" }).querySelector(".piece")).toBeNull();
+  });
+
   it("exposes the current FEN and accessible square descriptions", () => {
     render(<Board fen={START_FEN} />);
     const board = screen.getByRole("group", { name: "Chess board" });
