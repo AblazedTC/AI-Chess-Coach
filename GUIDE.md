@@ -270,6 +270,102 @@ CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
 This public frontend URL is not a secret. API keys belong only in backend
 configuration. The backend only accepts explicitly configured local CORS origins.
 
+## Render and Linux Stockfish
+
+Stockfish runs as a child process inside the backend container, not as a
+separate Render service. The provided `backend\Dockerfile` installs Debian's
+Linux Stockfish package at `/usr/games/stockfish`. Your Windows `.exe` and local
+`.env` are not uploaded. The container uses Python 3.13, locked production
+dependencies, one non-root Uvicorn worker, and Render's `PORT`.
+
+**This packages the backend; it does not make the application safe for public
+multi-user hosting.** CORS still accepts only localhost origins, there is no
+authentication or per-user game isolation, and state is lost on restart.
+Keep the service private or behind authenticated access controls. Do not enable
+paid Anthropic calls on an unprotected public endpoint. CORS is not authentication.
+
+### Check the image locally
+
+Docker Desktop must be installed and running with Linux containers. From the
+repository root:
+
+```powershell
+docker build --tag ai-chess-coach-backend backend
+docker run --rm --name ai-chess-coach-render-test --publish 127.0.0.1:8100:10000 ai-chess-coach-backend
+```
+
+Leave that terminal open. In a second terminal at the repository root:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8100/api/health
+node qa\container-smoke.mjs http://127.0.0.1:8100
+```
+
+The smoke check imports synthetic games and requests real Stockfish analysis,
+including a mate-in-one position. It does not call Chess.com or Anthropic.
+Health alone reports configured modes and does not prove the engine can run.
+Stop the container with Ctrl+C in the first terminal. Port 8100 must be free;
+do not run browser tests at the same time.
+
+### Configure Render
+
+Connect your private GitHub repository to Render using Render's GitHub
+integration. Restrict service access before exposing the application.
+For a Docker Web Service, use these settings:
+
+| Setting | Value |
+| --- | --- |
+| Repository | `AblazedTC/AI-Chess-Coach` |
+| Branch | `main` |
+| Root Directory | `backend` |
+| Language | `Docker` |
+| Dockerfile Path | `./Dockerfile` |
+| Docker Build Context Directory | `.` (relative to the root directory) |
+| Docker Command | Leave empty; use the image's command |
+| Health Check Path | `/api/health` |
+| Instances | `1` |
+
+Use a paid instance for consistent availability; free services sleep when idle.
+Do not add multiple workers or scale to multiple instances while state is
+process-local. A persistent disk alone does not preserve Python in-memory state.
+The image already supplies these defaults, so no Stockfish installation command
+or Windows path is needed in Render:
+
+```dotenv
+ENGINE_MODE=stockfish
+STOCKFISH_PATH=/usr/games/stockfish
+ENGINE_THREADS=1
+ENGINE_HASH_MB=32
+LLM_PROVIDER=deterministic
+```
+
+Set `CHESSCOM_MODE=live` in Render's environment settings for real public games.
+After protecting access to the backend, enable paid coaching there with
+`LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`, and optionally `ANTHROPIC_MODEL`.
+Enter the key only in Render's environment settings, never in GitHub, a Docker
+build argument, or a frontend environment variable. Local `.env` changes do not
+update Render, and Render settings do not modify your local `.env`.
+
+Check the deployed `/api/health`, then analyze a game to confirm native engine
+execution. If an old Render environment value sets `ENGINE_MODE=demo` or a
+Windows `STOCKFISH_PATH`, remove it or replace it with the Linux values above:
+Render's environment settings override image defaults.
+
+### Connecting a hosted frontend
+
+The frontend can run on Vercel or, after a verified static export, Cloudflare
+Pages. Stockfish and Anthropic remain on the Render backend.
+Set `NEXT_PUBLIC_API_BASE_URL` to the protected backend's public HTTPS URL
+before building the frontend. That URL is public; it must not contain a secret.
+
+The current localhost-only `CORS_ORIGINS` validation must be extended to allow
+your exact HTTPS frontend origin before this connection can work. Backend
+authentication/authorization and deployment-level rate limits must also be
+implemented. These changes are not supplied by the Dockerfile. A private
+Render service cannot be called directly from a browser on Vercel or Cloudflare;
+it needs an authenticated public gateway. Frontend-only protection does not
+protect a separately reachable backend.
+
 ## Troubleshooting
 
 | Symptom                                                | What to check                                                                                                                                      |

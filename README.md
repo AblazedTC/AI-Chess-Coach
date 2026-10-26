@@ -65,6 +65,13 @@ Scores are always from White's perspective. Mate scores are distinct from
 centipawn evaluations. Move classifications are heuristics, not Chess.com's
 classification system.
 
+## Render and Stockfish
+
+The backend Docker image installs Linux Stockfish and runs as a non-root user.
+See [Render setup](GUIDE.md#render-and-linux-stockfish) for the exact dashboard
+settings, container verification, and remaining public-deployment requirements.
+Local `.env` files and Windows executables are not included in the image.
+
 ## Development checks
 
 ```powershell
