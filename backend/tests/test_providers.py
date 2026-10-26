@@ -178,11 +178,22 @@ async def call_coach(settings: Settings, handler: object) -> tuple[dict, list[ht
 
 
 async def test_anthropic_structured_evidence(settings: Settings) -> None:
-    body = {
-        "stop_reason": "end_turn",
-        "content": [
-            {"type": "text", "text": json.dumps({"evidence_ids": [2, 1], "move_uci": ["a2a3"]})}
+    draft = {
+        "explanation": [
+            {
+                "text": "The material balance is equal, but development still matters.",
+                "evidence_ids": [2],
+            }
         ],
+        "takeaway": {
+            "text": "Develop minor pieces and contest the center.",
+            "evidence_ids": [4],
+        },
+        "move_uci": ["a2a3"],
+    }
+    body = {
+        "stop_reason": "tool_use",
+        "content": [{"type": "tool_use", "name": "explain_position", "input": draft}],
     }
     response, calls = await call_coach(
         anthropic(settings), lambda _: httpx.Response(200, json=body)
@@ -196,8 +207,68 @@ async def test_anthropic_structured_evidence(settings: Settings) -> None:
     assert request.headers["anthropic-version"] == "2023-06-01"
     assert request.headers["x-api-key"] == "test-not-a-real-key"
     payload = json.loads(request.content)
-    assert payload["max_tokens"] == 400
+    assert payload["max_tokens"] == 1400
+    assert payload["tool_choice"] == {"type": "tool", "name": "explain_position"}
     assert payload["messages"][0]["role"] == "user"
+    evidence = json.loads(payload["messages"][0]["content"])["evidence"]
+    assert evidence["4"]["kind"] == "board"
+    assert evidence["4"]["lesson"]
+    assert "Teach ideas, not evaluation-bar changes" in payload["system"]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"stop_reason": "max_tokens", "content": []},
+        {"stop_reason": "refusal", "content": []},
+        {
+            "stop_reason": "tool_use",
+            "content": [{"type": "tool_use", "name": "execute_move", "input": {}}],
+        },
+        {
+            "stop_reason": "tool_use",
+            "content": [{"type": "tool_use", "name": "explain_position"}],
+        },
+    ],
+)
+async def test_incomplete_or_unexpected_coaching_tools_fall_back(
+    settings: Settings, body: dict
+) -> None:
+    response, _ = await call_coach(anthropic(settings), lambda _: httpx.Response(200, json=body))
+    assert response["mode"] == "deterministic"
+    assert response["warning"]
+
+
+async def test_anthropic_repairs_one_invalid_draft(settings: Settings) -> None:
+    attempts = 0
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        draft = {
+            "explanation": [
+                {
+                    "text": "White is to move.",
+                    "evidence_ids": [999] if attempts == 1 else [1],
+                }
+            ],
+            "takeaway": {"text": "Develop minor pieces.", "evidence_ids": [4]},
+            "move_uci": [],
+        }
+        return httpx.Response(
+            200,
+            json={
+                "stop_reason": "tool_use",
+                "content": [{"type": "tool_use", "name": "explain_position", "input": draft}],
+            },
+        )
+
+    response, calls = await call_coach(anthropic(settings), handler)
+    assert response["mode"] == "anthropic"
+    assert len(calls) == 2
+    repair = json.loads(calls[1].content)["messages"][-1]["content"]
+    assert "Unknown evidence" in repair
+    assert "test-not-a-real-key" not in repair
 
 
 @pytest.mark.parametrize(
@@ -224,6 +295,42 @@ async def test_anthropic_unsupported_output_falls_back(
     assert result["mode"] == "deterministic"
     assert "fallback" not in result["message"]  # No untrusted provider text displayed.
     assert "using the deterministic coach" in result["warning"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"explanation": [{"text": "White is to move.", "evidence_ids": [999]}]},
+        {"explanation": [{"text": "White is to move.", "evidence_ids": [True]}]},
+        {"move_uci": ["e2e5"]},
+        {"move_uci": ["e2e4"]},  # Legal, but absent from the supplied suggestions.
+        {"explanation": [{"text": "Qh5 wins a piece.", "evidence_ids": [1]}]},
+        {"explanation": [{"text": "White's queen on e4 is safe.", "evidence_ids": [1]}]},
+        {"explanation": [{"text": "This creates a fork.", "evidence_ids": [4]}]},
+        {"explanation": [{"text": "You always neglect development.", "evidence_ids": [4]}]},
+        {"takeaway": {"text": "Think about the position.", "evidence_ids": [1]}},
+        {"citations": ["fake"]},
+    ],
+)
+async def test_ungrounded_coaching_explanation_falls_back(settings: Settings, change: dict) -> None:
+    draft = {
+        "explanation": [{"text": "White is to move.", "evidence_ids": [1]}],
+        "takeaway": {"text": "Develop minor pieces.", "evidence_ids": [4]},
+        "move_uci": [],
+        **change,
+    }
+    body = {
+        "stop_reason": "end_turn",
+        "content": [{"type": "text", "text": json.dumps(draft)}],
+    }
+    response, calls = await call_coach(
+        anthropic(settings), lambda _: httpx.Response(200, json=body)
+    )
+    assert response["mode"] == "deterministic"
+    assert len(calls) == 2
+    assert response["warning"]
+    assert "Qh5" not in response["message"]
+    assert "queen on e4" not in response["message"]
 
 
 @pytest.mark.parametrize("status", [401, 429, 500])

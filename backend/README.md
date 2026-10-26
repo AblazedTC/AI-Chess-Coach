@@ -34,13 +34,22 @@ uv --directory backend run python scripts\export_openapi.py
   mate 0 denotes an already-mated board. Move classifications concern the move
   **leading into** the selected ply, using adjacent bounded searches. CP loss
   is null when either score is mate; these are estimates, not proofs.
-* **Coach:** Deterministic facts cite `game_id:ply:position_key`. Arbitrary
-  questions do not manufacture tactical answers. Optional Anthropic mode
+* **Coach:** Explains move-specific fundamentals: loose pieces and legal
+  recaptures, central pawn support, development, center control, and castling.
+  It compares the played move with Stockfish's pre-move alternative and the
+  opponent's continuation, rather than treating an evaluation change as a lesson.
+  Evidence cites `game_id:ply:position_key`, including the previous position when
+  comparing moves. Geometric defenders are not assumed to be legal recaptures,
+  and an unrecapturable capture does not prove a sacrifice is unsound.
+  Optional Anthropic mode
   requires explicit `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` configuration
   (never commit `.env`). This mode sends the question/history and bounded
   verified position facts to the official Messages API and may incur charges.
-  The model selects structured evidence IDs and allowed moves only; displayed
-  prose, citations, legality and engine-verification flags remain server-owned.
+  The model writes short explanations and one practical takeaway, citing supplied
+  board/engine evidence for each paragraph. Unknown citations, unsupported moves,
+  squares, piece placements, tactical motifs, and numerical evaluations are rejected.
+  These checks do not prove the model's causal interpretation; it can still be wrong.
+  Citations, move legality, and engine-verification flags remain server-owned.
   Unsupported or unavailable output falls back honestly with a warning.
   No model calls are made during testing. API reference:
   https://platform.claude.com/docs/en/api/messages .
