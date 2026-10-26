@@ -28,7 +28,9 @@ uv --directory backend run python scripts\export_openapi.py
   `classification`, and `loss_cp` are null. Even terminal positions retain
   material-only scores, not invented mate evaluations.
 - **Stockfish:** Set `ENGINE_MODE=stockfish` and `STOCKFISH_PATH` to your own
-  native executable. No binary is bundled or downloaded. One exclusive UCI
+  native executable for local installs. The optional Docker image installs
+  Debian's Linux Stockfish package; no executable is committed to this repository.
+  One exclusive UCI
   child process has bounded depth, time, memory, threads and queue waits.
   Cancellation, timeout, shutdown and protocol failures terminate/reap it;
   a later request can start a fresh process. Missing configuration fails startup;
@@ -90,6 +92,19 @@ CORS is restricted to explicitly configured localhost/loopback origins;
 credentials are disabled. `.env.example` lists configuration. This is a local
 application, not a multi-user public service: do not expose it to the internet
 without authentication, authorization and deployment-level rate limits.
+
+## Render container
+
+`Dockerfile` installs Python 3.13, locked production dependencies, and native
+Linux Stockfish at `/usr/games/stockfish`. It runs one non-root Uvicorn worker,
+binds to `0.0.0.0`, and honors Render's `PORT`. Its default engine is Stockfish;
+coaching stays deterministic unless Anthropic is explicitly enabled.
+
+The build context is allowlisted in `.dockerignore`; `.env`, `.venv`, tests,
+and local engine executables are excluded. See the
+[Render guide](../GUIDE.md#render-and-linux-stockfish) for setup and limitations.
+CI builds the image and verifies real Stockfish responses over HTTP, not just
+the configured health status.
 
 ## Validation
 

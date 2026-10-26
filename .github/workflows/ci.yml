@@ -49,6 +49,32 @@ jobs:
       - run: git diff --exit-code -- openapi.json
       - run: uv run pytest
 
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: docker build --tag ai-chess-coach-render backend
+      - id: container
+        run: >-
+          docker run --detach --name coach-render-smoke
+          --publish 127.0.0.1:8100:19000 --env PORT=19000
+          ai-chess-coach-render
+      - run: |
+          curl --fail --silent --show-error --retry 20 --retry-connrefused \
+            --retry-delay 1 --retry-max-time 30 --connect-timeout 2 --max-time 3 \
+            http://127.0.0.1:8100/api/health
+          docker exec coach-render-smoke .venv/bin/python -c \
+            "import importlib.util, os; assert os.getuid() != 0; assert not os.path.exists('/app/.env'); assert importlib.util.find_spec('pytest') is None"
+          node qa/container-smoke.mjs http://127.0.0.1:8100
+      - if: failure() && steps.container.outcome == 'success'
+        run: docker logs coach-render-smoke
+      - if: always() && steps.container.outcome == 'success'
+        run: docker rm --force coach-render-smoke
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
