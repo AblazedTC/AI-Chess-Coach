@@ -99,6 +99,8 @@ Component details: [backend README](backend/README.md) and
 The Next.js frontend handles presentation and interaction. The FastAPI backend
 owns chess rules, PGN parsing, imports, engine access, coaching evidence, and
 analysis jobs. `python-chess` is the authority for legal moves and board state.
+Browser API requests use same-origin paths; Next.js proxies them to the
+configured backend, avoiding cross-origin browser failures on hosted deployments.
 Coaching cannot turn an unverified suggestion into an engine-backed claim.
 AI explanations interpret verified board facts and bounded engine lines;
 their reasoning can still be wrong.

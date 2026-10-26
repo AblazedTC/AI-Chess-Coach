@@ -5,12 +5,18 @@ import { jsonResponse } from "@/test/fixtures";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("API client", () => {
+  it("uses same-origin API paths instead of contacting the backend from the browser", async () => {
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse({ status: "ok" }));
+    vi.stubGlobal("fetch", fetcher);
+    await api.health();
+    expect(fetcher).toHaveBeenCalledWith("/api/health", expect.objectContaining({ method: "GET" }));
+  });
   it("uses the fixed snake_case JSON contract", async () => {
     const fetcher = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
     vi.stubGlobal("fetch", fetcher);
     await api.coach("a-game", 3, "Why?", []);
     expect(fetcher).toHaveBeenCalledWith(
-      expect.stringContaining("/api/coach"),
+      "/api/coach",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ game_id: "a-game", ply: 3, question: "Why?", history: [] }),
