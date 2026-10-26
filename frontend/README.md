@@ -4,6 +4,9 @@ A responsive, accessible chess study workspace built with Next.js App Router,
 React, and strict TypeScript. Uses system fonts and react-chessboard's default SVG
 pieces, bundled locally; builds never download fonts or require external services.
 
+For complete installation, provider setup, and everyday usage, see the
+[setup and user guide](../GUIDE.md).
+
 ## Run
 
 Requires Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` and the backend running on
