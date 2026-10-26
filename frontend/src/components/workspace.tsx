@@ -224,7 +224,7 @@ export function Workspace() {
         <footer className="workspace-footer" hidden={Boolean(game)}>
           <span>Play with curiosity. Review with purpose.</span>
           <span>
-            chesscoach <span aria-hidden="true">♞</span>
+            AI Chess Coach <span aria-hidden="true">♞</span>
           </span>
         </footer>
       </main>

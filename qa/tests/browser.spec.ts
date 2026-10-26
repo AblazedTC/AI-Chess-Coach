@@ -58,6 +58,8 @@ test("offline demo navigation keeps board FEN and move position consistent", asy
   api,
 }) => {
   const game = await loadDemo(page, api);
+  await expect(page).toHaveTitle("AI Chess Coach — Find your next move");
+  await expect(page.getByRole("link", { name: /AI Chess Coach/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Previous move", exact: true })).toBeDisabled();
   for (let ply = 1; ply <= 3; ply += 1) {
     await page.getByRole("button", { name: "Next move", exact: true }).click();

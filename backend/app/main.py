@@ -193,7 +193,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         client = httpx.AsyncClient(
             follow_redirects=False,
             limits=httpx.Limits(max_connections=4, max_keepalive_connections=2),
-            headers={"User-Agent": "ChessCoach/0.1 (local-first chess study application)"},
+            headers={"User-Agent": "AIChessCoach/0.1 (local-first chess study application)"},
         )
         analyzer = Analyzer(config, games, engine)
         jobs = Jobs(config, games, analyzer)
@@ -211,7 +211,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await client.aclose()
 
     app = FastAPI(
-        title="Chess Coach API",
+        title="AI Chess Coach API",
         version="0.1.0",
         description=(
             "Offline-first chess study. Scores use White POV; demo scores measure material only. "

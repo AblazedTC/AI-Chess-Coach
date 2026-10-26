@@ -26,7 +26,7 @@ export function Library({
           ♞
         </span>
         <span>
-          chess<span className="brand-light">coach</span>
+          AI Chess <span className="brand-light">Coach</span>
           <small>YOUR PERSONAL STUDY SPACE</small>
         </span>
       </a>

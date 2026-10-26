@@ -19,6 +19,10 @@ def test_health(client: TestClient) -> None:
     }
 
 
+def test_api_project_name(client: TestClient) -> None:
+    assert client.get("/openapi.json").json()["info"]["title"] == "AI Chess Coach API"
+
+
 def test_import_retrieve_and_positions(client: TestClient, game: dict) -> None:
     assert client.get(f"/api/games/{game['id']}").json() == game
     imported = client.post("/api/games/import", json={"pgn": game["pgn"]})
