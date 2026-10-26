@@ -9,7 +9,7 @@ let fetcher: ReturnType<typeof vi.fn<(input: string, init?: RequestInit) => Prom
 
 beforeEach(() => {
   fetcher = vi.fn(async (input: string, init?: RequestInit) => {
-    const path = new URL(input).pathname;
+    const path = new URL(input, window.location.href).pathname;
     const body = init?.body ? JSON.parse(String(init.body)) : {};
     if (path === "/api/health")
       return jsonResponse({ status: "ok", engine_mode: "demo", coach_mode: "deterministic" });
