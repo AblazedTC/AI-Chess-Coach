@@ -2,6 +2,10 @@
 
 Python 3.13, FastAPI, python-chess, and uv. From the repository root:
 
+For first-time installation, `.env` configuration, and troubleshooting, use the
+[setup and user guide](../GUIDE.md). `backend\.env` is local configuration;
+the example file is a template. Restart the backend after changing its settings.
+
 ```powershell
 uv --directory backend sync --locked
 uv --directory backend run uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
@@ -18,23 +22,23 @@ uv --directory backend run python scripts\export_openapi.py
 
 ## Modes and evidence
 
-* **Demo:** White-minus-Black material only (pawn 100, knight 320, bishop 330,
+- **Demo:** White-minus-Black material only (pawn 100, knight 320, bishop 330,
   rook 500, queen 900). Not a chess engine evaluation. Lines are lexicographically
   selected legal examples, **not recommendations**, and `best_move`, `depth`,
   `classification`, and `loss_cp` are null. Even terminal positions retain
   material-only scores, not invented mate evaluations.
-* **Stockfish:** Set `ENGINE_MODE=stockfish` and `STOCKFISH_PATH` to your own
+- **Stockfish:** Set `ENGINE_MODE=stockfish` and `STOCKFISH_PATH` to your own
   native executable. No binary is bundled or downloaded. One exclusive UCI
   child process has bounded depth, time, memory, threads and queue waits.
   Cancellation, timeout, shutdown and protocol failures terminate/reap it;
   a later request can start a fresh process. Missing configuration fails startup;
   an unavailable executable yields a sanitized 503 on analysis.
-* **Scores:** Always White POV. `kind: "mate"` preserves signed moves-to-mate,
+- **Scores:** Always White POV. `kind: "mate"` preserves signed moves-to-mate,
   distinct from centipawns. Positive favors White; negative favors Black;
   mate 0 denotes an already-mated board. Move classifications concern the move
   **leading into** the selected ply, using adjacent bounded searches. CP loss
   is null when either score is mate; these are estimates, not proofs.
-* **Coach:** Explains move-specific fundamentals: loose pieces and legal
+- **Coach:** Explains move-specific fundamentals: loose pieces and legal
   recaptures, central pawn support, development, center control, and castling.
   It compares the played move with Stockfish's pre-move alternative and the
   opponent's continuation, rather than treating an evaluation change as a lesson.
@@ -53,7 +57,7 @@ uv --directory backend run python scripts\export_openapi.py
   Unsupported or unavailable output falls back honestly with a warning.
   No model calls are made during testing. API reference:
   https://platform.claude.com/docs/en/api/messages .
-* **Insights:** Counts of actual checking moves, captures, castling and
+- **Insights:** Counts of actual checking moves, captures, castling and
   promotions across unique games, with supporting positions. They do not claim
   engine-confirmed weaknesses or infer player intent.
 
