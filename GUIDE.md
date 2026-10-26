@@ -259,9 +259,14 @@ Do not also run `npm run dev` at the same time. Stop each separate terminal
 with Ctrl+C when finished. Use one backend worker: game state and jobs are
 process-local.
 
-The frontend defaults to `http://127.0.0.1:8000` for API requests. To change it,
-set `NEXT_PUBLIC_API_BASE_URL` before starting or building Next.js, and configure
-`CORS_ORIGINS` in `backend\.env` for the frontend's exact local origin. For example:
+The browser calls `/api/...` on the frontend's own origin. Next.js proxies
+these requests to `http://127.0.0.1:8000` by default. To change the upstream,
+set `NEXT_PUBLIC_API_BASE_URL` before starting or building Next.js, then restart
+or redeploy the frontend. The existing variable name remains supported.
+
+This proxy does not require the browser's origin in the backend CORS allowlist.
+Separate clients that call the backend directly must use an allowed local
+origin. For example:
 
 ```dotenv
 CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
@@ -353,18 +358,31 @@ Render's environment settings override image defaults.
 
 ### Connecting a hosted frontend
 
-The frontend can run on Vercel or, after a verified static export, Cloudflare
-Pages. Stockfish and Anthropic remain on the Render backend.
-Set `NEXT_PUBLIC_API_BASE_URL` to the protected backend's public HTTPS URL
-before building the frontend. That URL is public; it must not contain a secret.
+For Vercel, select `frontend` as the project's root directory. In Settings >
+Environment Variables, add the following Config value for Production and
+Preview, then redeploy:
 
-The current localhost-only `CORS_ORIGINS` validation must be extended to allow
-your exact HTTPS frontend origin before this connection can work. Backend
-authentication/authorization and deployment-level rate limits must also be
-implemented. These changes are not supplied by the Dockerfile. A private
-Render service cannot be called directly from a browser on Vercel or Cloudflare;
-it needs an authenticated public gateway. Frontend-only protection does not
-protect a separately reachable backend.
+```dotenv
+NEXT_PUBLIC_API_BASE_URL=https://your-backend.onrender.com
+```
+
+Use the backend's origin without `/api` or a trailing endpoint. The URL is
+not a secret; Anthropic keys and Stockfish configuration stay on Render only.
+The browser calls its own frontend's `/api/...` paths, and Next.js forwards
+them to Render. Production and changing preview domains therefore do not need
+wildcard or public-origin backend CORS rules. An old deployment does not pick
+up new environment variables until it is rebuilt.
+
+This requires a Next.js server/runtime, such as Vercel or a compatible
+Cloudflare Workers deployment. A static-only Cloudflare Pages export cannot
+provide this proxy; it would require a separate API gateway and corresponding
+client configuration. Stockfish and Anthropic remain on Render either way.
+
+The proxy is not authentication. Backend authentication/authorization and
+deployment-level rate limits are still needed for public hosting, including
+on Render's separately reachable URL. Vercel deployment protection does not
+protect that backend URL. A private Render service also needs a reachable,
+authenticated gateway; Vercel cannot access Render's private network directly.
 
 ## Troubleshooting
 
@@ -379,7 +397,7 @@ protect a separately reachable backend.
 | Startup rejects Anthropic configuration                | Add a nonempty key, or set `LLM_PROVIDER=deterministic` until one is available.                                                                    |
 | Coach falls back to deterministic                      | Read the warning. Check API credits, key validity, model access, and connectivity. Unsupported output or a timeout can also trigger fallback.      |
 | `.env` changes seem ignored                            | Restart the backend. PowerShell environment variables override `.env`; clear an old override such as `$env:ENGINE_MODE = $null`, then restart.     |
-| The frontend cannot reach the backend                  | Check `/api/health`, the API base URL, and exact CORS origins. Both services must be running.                                                      |
+| The frontend cannot reach the backend                  | Check `/api/health` on both frontend and backend, verify `NEXT_PUBLIC_API_BASE_URL`, and rebuild after changing it. Both services must be running. |
 | Port 3000 or 8000 is already in use                    | Stop your earlier instance with Ctrl+C in its terminal. Do not start another copy on top of it.                                                    |
 | Next.js reports a development lock                     | Stop the existing frontend before starting another dev server or running browser tests.                                                            |
 | A game disappears or its ID is not found after restart | Imports, evaluations, and jobs are in memory. Refresh the app and import or search for the game again.                                             |

@@ -17,9 +17,16 @@ npm --prefix frontend ci
 npm --prefix frontend run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
-The API defaults to `http://127.0.0.1:8000`. To use another backend, set
-`NEXT_PUBLIC_API_BASE_URL` before starting or building Next.js. This public
-configuration is not a secret. No API keys belong in the frontend.
+The browser uses same-origin `/api/...` paths. Next.js proxies these requests
+to `http://127.0.0.1:8000` by default. To use another backend, set
+`NEXT_PUBLIC_API_BASE_URL` before starting or building Next.js; on Vercel,
+set it to the Render backend's HTTPS origin and redeploy. Existing variable
+names are preserved, but the browser no longer fetches that origin directly.
+The URL is not a secret. No Anthropic keys belong in the frontend.
+
+The proxy works for production and preview domains without wildcard backend
+CORS rules. It requires a Next.js server/runtime, not a static-only export.
+It does not add authentication or protect a separately public backend.
 
 Choose **Try demo** to explore without a Chess.com account or any AI/engine
 configuration. Demo analysis is explicitly **material-only**, not a positional

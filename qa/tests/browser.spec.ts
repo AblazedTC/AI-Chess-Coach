@@ -11,6 +11,32 @@ import {
   readJson,
 } from "./contracts";
 
+test("browser API calls use the frontend origin even when direct backend CORS is denied", async ({
+  page,
+  api,
+}) => {
+  const requests: URL[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/")) requests.push(url);
+  });
+  await loadDemo(page, api);
+  const origin = new URL(page.url()).origin;
+  await expect(page.getByText("Offline demo · material only", { exact: true })).toBeVisible();
+  expect(requests.some((url) => url.pathname === "/api/health")).toBeTruthy();
+  expect(requests.some((url) => url.pathname === "/api/demo")).toBeTruthy();
+  expect(requests.every((url) => url.origin === origin)).toBeTruthy();
+  const denied = await api.fetch("/api/games/import", {
+    method: "OPTIONS",
+    headers: {
+      Origin: origin,
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type",
+    },
+  });
+  expect(denied.status()).toBe(400);
+});
+
 test("default SVG pieces render in preview, replay, flipped boards, and practice", async ({
   page,
   api,
