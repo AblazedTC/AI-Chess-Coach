@@ -5,11 +5,11 @@ import type { WorkspaceModel } from "@/hooks/use-workspace";
 import { MAX_COACH_CONTENT } from "@/lib/limits";
 import { ErrorNotice, Spinner, Tag } from "./ui";
 
-const questions = [
-  "What should I focus on?",
-  "What is the threat?",
-  "Explain the material balance.",
-];
+function citationPly(citation: string, fallback: number) {
+  const match = /^[^:]+:(\d+):[^:]+$/.exec(citation);
+  const ply = match ? Number(match[1]) : NaN;
+  return Number.isInteger(ply) && ply >= 0 && ply <= 500 ? ply : fallback;
+}
 
 export function CoachPanel({ model }: { model: WorkspaceModel }) {
   const [question, setQuestion] = useState("");
@@ -19,6 +19,15 @@ export function CoachPanel({ model }: { model: WorkspaceModel }) {
   const conversation = model.conversation;
   const response = conversation?.response;
   const mode = response?.mode || model.health?.coach_mode;
+  const questions = [
+    model.state.ply > 0
+      ? "Why did the last move matter?"
+      : "How should I develop and defend the center?",
+    model.state.ply > 0
+      ? "Why is the engine's alternative better?"
+      : "What is the idea behind the engine's suggested move?",
+    "What practical lesson and plan should I take from this position?",
+  ];
   function update(value: string) {
     setQuestionKey(contextKey);
     setQuestion(value);
@@ -83,18 +92,21 @@ export function CoachPanel({ model }: { model: WorkspaceModel }) {
             </summary>
             {response.citations.length > 0 && (
               <ul className="citation-list">
-                {response.citations.map((citation, index) => (
-                  <li key={index}>
-                    <button
-                      className="citation-button"
-                      onClick={() => model.navigate(response.ply)}
-                      title={citation}
-                    >
-                      <span aria-hidden="true">⌖</span> Position {response.ply}
-                      <small>{citation}</small>
-                    </button>
-                  </li>
-                ))}
+                {response.citations.map((citation, index) => {
+                  const ply = citationPly(citation, response.ply);
+                  return (
+                    <li key={index}>
+                      <button
+                        className="citation-button"
+                        onClick={() => model.navigate(ply)}
+                        title={citation}
+                      >
+                        <span aria-hidden="true">⌖</span> Position {ply}
+                        <small>{citation}</small>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
             {response.suggested_moves.map((move) => (
