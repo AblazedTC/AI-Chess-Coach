@@ -1,4 +1,4 @@
-# Chess Coach backend
+# AI Chess Coach backend
 
 Python 3.13, FastAPI, python-chess, and uv. From the repository root:
 

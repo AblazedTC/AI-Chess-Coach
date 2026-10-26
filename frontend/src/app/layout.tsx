@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Chess Coach — Find your next move",
+  title: "AI Chess Coach — Find your next move",
   description:
     "A thoughtful chess study workspace. Replay your games, explore positions, and build better habits.",
 };

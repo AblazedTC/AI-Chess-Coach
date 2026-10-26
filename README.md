@@ -1,4 +1,4 @@
-# Chess Coach
+# AI Chess Coach
 
 Review your games, explore better moves, and learn from explanations tied to
 the position on the board.
@@ -20,8 +20,8 @@ Requires Git, [uv](https://docs.astral.sh/uv/), Python 3.13, and Node.js
 These commands use Windows PowerShell.
 
 ```powershell
-git clone https://github.com/AblazedTC/chess-takehome-recreated.git
-Set-Location chess-takehome-recreated
+git clone https://github.com/AblazedTC/AI-Chess-Coach.git
+Set-Location AI-Chess-Coach
 uv --directory backend sync --locked
 npm ci
 npm --prefix frontend ci
@@ -32,6 +32,9 @@ npm run dev
 ```
 
 The repository is private; cloning requires an account with access.
+For an existing checkout, follow the
+[remote update instructions](GUIDE.md#existing-checkouts-after-the-rename)
+instead of cloning again.
 Open **http://localhost:3000**. The backend runs on **http://127.0.0.1:8000**;
 interactive API documentation is at **http://127.0.0.1:8000/docs**.
 Keep the terminal open; press **Ctrl+C** to stop both services.

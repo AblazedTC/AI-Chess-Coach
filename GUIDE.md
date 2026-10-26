@@ -1,6 +1,6 @@
-# Setup and user guide
+# AI Chess Coach setup and user guide
 
-Run Chess Coach on your own Windows computer. Start with the offline demo, then
+Run AI Chess Coach on your own Windows computer. Start with the offline demo, then
 enable real Chess.com games, native Stockfish, and Anthropic independently.
 All commands below use PowerShell from the repository root unless noted.
 
@@ -31,12 +31,27 @@ and an Anthropic key are optional, not prerequisites for the demo.
 Clone the private repository using a GitHub account that has access:
 
 ```powershell
-git clone https://github.com/AblazedTC/chess-takehome-recreated.git
-Set-Location chess-takehome-recreated
+git clone https://github.com/AblazedTC/AI-Chess-Coach.git
+Set-Location AI-Chess-Coach
 ```
 
 If you already downloaded or cloned it, open a terminal in the folder containing
 `package.json`, `backend`, and `frontend`; do not clone it again.
+
+### Existing checkouts after the rename
+
+The GitHub repository is now **AI-Chess-Coach**. From an existing checkout, update
+the remote without cloning again:
+
+```powershell
+git remote set-url origin https://github.com/AblazedTC/AI-Chess-Coach.git
+git remote -v
+```
+
+Renaming the repository does not rename your existing local folder. You can keep
+using that folder; a fresh clone creates `AI-Chess-Coach` by default.
+
+### Install and start
 
 Install the locked dependencies:
 
@@ -65,7 +80,7 @@ Press **Ctrl+C** in that terminal to stop both services.
 
 | Service                       | Address                          |
 | ----------------------------- | -------------------------------- |
-| Chess Coach                   | http://localhost:3000            |
+| AI Chess Coach                | http://localhost:3000            |
 | Backend health                | http://127.0.0.1:8000/api/health |
 | Interactive API documentation | http://127.0.0.1:8000/docs       |
 

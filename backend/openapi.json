@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Chess Coach API",
+    "title": "AI Chess Coach API",
     "description": "Offline-first chess study. Scores use White POV; demo scores measure material only. Position identity is the SHA-256 prefix of full FEN. Data is in bounded, expiring process-local memory.",
     "version": "0.1.0"
   },

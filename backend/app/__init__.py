@@ -1,1 +1,1 @@
-"""Chess Coach backend."""
+"""AI Chess Coach backend."""

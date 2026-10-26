@@ -1,5 +1,5 @@
 [project]
-name = "chess-coach-backend"
+name = "ai-chess-coach-backend"
 version = "0.1.0"
 description = "A local-first, evidence-grounded chess coach API"
 requires-python = ">=3.13,<3.14"
