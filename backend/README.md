@@ -88,8 +88,11 @@ Use **one worker** so all requests share state. Restarting loses imports/jobs.
 Concurrent HTTP requests are bounded at 32 and bodies at 300,000 bytes.
 Validation and provider errors are sanitized JSON envelopes with request IDs.
 
-CORS is restricted to explicitly configured localhost/loopback origins;
-credentials are disabled. `.env.example` lists configuration. This is a local
+CORS defaults to explicit localhost/loopback origins. Operators may also
+configure exact HTTPS origins for direct hosted-browser clients; wildcards,
+nonlocal HTTP, URL paths, and credentials are rejected. Unconfigured origins
+remain denied, and CORS credentials are disabled. CORS is not authentication.
+`.env.example` lists configuration. This is a local
 application, not a multi-user public service: do not expose it to the internet
 without authentication, authorization and deployment-level rate limits.
 

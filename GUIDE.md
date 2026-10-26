@@ -265,15 +265,19 @@ set `NEXT_PUBLIC_API_BASE_URL` before starting or building Next.js, then restart
 or redeploy the frontend. The existing variable name remains supported.
 
 This proxy does not require the browser's origin in the backend CORS allowlist.
-Separate clients that call the backend directly must use an allowed local
-origin. For example:
+Separate clients that call the backend directly must use an explicitly allowed
+local HTTP or HTTPS origin. For example:
 
 ```dotenv
 CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
 ```
 
 This public frontend URL is not a secret. API keys belong only in backend
-configuration. The backend only accepts explicitly configured local CORS origins.
+configuration. The backend accepts only explicitly configured CORS origins.
+For older hosted deployments that still call the backend directly, configure
+their exact HTTPS origin in Render's `CORS_ORIGINS`, for example
+`["https://your-frontend.vercel.app"]`. Do not include a trailing slash, path,
+wildcard, query, or fragment. Existing localhost defaults remain unchanged.
 
 ## Render and Linux Stockfish
 
@@ -284,7 +288,7 @@ Linux Stockfish package at `/usr/games/stockfish`. Your Windows `.exe` and local
 dependencies, one non-root Uvicorn worker, and Render's `PORT`.
 
 **This packages the backend; it does not make the application safe for public
-multi-user hosting.** CORS still accepts only localhost origins, there is no
+multi-user hosting.** CORS defaults to localhost origins, there is no
 authentication or per-user game isolation, and state is lost on restart.
 Keep the service private or behind authenticated access controls. Do not enable
 paid Anthropic calls on an unprotected public endpoint. CORS is not authentication.

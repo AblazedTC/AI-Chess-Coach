@@ -357,7 +357,7 @@ async def test_anthropic_timeout(settings: Settings) -> None:
         {"llm_provider": "anthropic", "anthropic_api_key": ""},
         {"engine_depth": 100},
         {"cors_origins": ["*"]},
-        {"cors_origins": ["https://evil.invalid"]},
+        {"cors_origins": ["http://evil.invalid"]},
         {"cors_origins": ["http://localhost:3000/path"]},
         {"max_active_jobs": 3, "max_jobs": 2},
     ],
@@ -365,3 +365,49 @@ async def test_anthropic_timeout(settings: Settings) -> None:
 def test_config_validation(kwargs: dict) -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **kwargs)
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://localhost:3000",
+        "https://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://[::1]:3000",
+        "https://coach.example",
+        "https://coach.example:8443",
+    ],
+)
+def test_explicit_cors_origin_configuration(origin: str) -> None:
+    assert Settings(_env_file=None, cors_origins=[origin]).cors_origins == [origin]
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "*",
+        "null",
+        "https://*.vercel.app",
+        "http://coach.example",
+        "ftp://coach.example",
+        "https://",
+        "https://coach.example/",
+        "https://coach.example/path",
+        "https://coach.example?query=1",
+        "https://coach.example?",
+        "https://coach.example#fragment",
+        "https://coach.example#",
+        "https://user:password@coach.example",
+        "https://@coach.example",
+        " https://coach.example",
+        "https://coach.\texample",
+        "https://coach.example\\path",
+        "https://coach.example:invalid",
+        "https://coach.example:70000",
+        "https://coach.example:",
+        "https://coach.example:0",
+    ],
+)
+def test_invalid_cors_origin_configuration(origin: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, cors_origins=[origin])

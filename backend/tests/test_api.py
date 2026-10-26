@@ -223,6 +223,45 @@ def test_cors(client: TestClient) -> None:
     assert len(rejected.json()["request_id"]) == 32
 
 
+def test_explicit_https_origin_allows_browser_requests_and_preserves_isolation(
+    settings: Settings,
+) -> None:
+    origin = "https://coach.example"
+    settings.cors_origins = [origin]
+    with TestClient(create_app(settings)) as client:
+        health = client.get("/api/health", headers={"Origin": origin})
+        assert health.status_code == 200
+        assert health.headers["access-control-allow-origin"] == origin
+        assert "access-control-allow-credentials" not in health.headers
+        preflight_headers = {
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        }
+        preflight = client.options("/api/games/import", headers=preflight_headers)
+        assert preflight.status_code == 200
+        assert preflight.headers["access-control-allow-origin"] == origin
+        imported = client.post(
+            "/api/games/import", json={"pgn": "1. e4 *"}, headers={"Origin": origin}
+        )
+        assert imported.status_code == 200
+        assert imported.headers["access-control-allow-origin"] == origin
+        invalid = client.post(
+            "/api/games/import", json={"pgn": "invalid PGN"}, headers={"Origin": origin}
+        )
+        assert invalid.status_code == 422
+        assert invalid.headers["access-control-allow-origin"] == origin
+        denied = client.options(
+            "/api/games/import",
+            headers={**preflight_headers, "Origin": "https://other.example"},
+        )
+        assert denied.status_code == 400
+        assert denied.json()["error"]["code"] == "cors_rejected"
+        assert "access-control-allow-origin" not in denied.headers
+        denied_health = client.get("/api/health", headers={"Origin": "https://other.example"})
+        assert "access-control-allow-origin" not in denied_health.headers
+
+
 def test_oversized_request_error_is_readable_from_allowed_origin(client: TestClient) -> None:
     response = client.post(
         "/api/games/import",
