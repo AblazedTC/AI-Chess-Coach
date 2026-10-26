@@ -54,7 +54,7 @@ def error_response(status: int, code: str, message: str, request_id: str) -> JSO
     )
 
 
-class LocalCORS(CORSMiddleware):
+class ConfiguredCORS(CORSMiddleware):
     def preflight_response(self, request_headers: Headers) -> Response:
         response = super().preflight_response(request_headers)
         if response.status_code >= 400:
@@ -227,7 +227,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = config
     app.add_middleware(RequestLimits, max_bytes=config.max_request_bytes)
     app.add_middleware(
-        LocalCORS,
+        ConfiguredCORS,
         allow_origins=config.cors_origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "DELETE"],

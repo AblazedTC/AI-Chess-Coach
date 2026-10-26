@@ -37,21 +37,30 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins")
     @classmethod
-    def local_origins_only(cls, origins: list[str]) -> list[str]:
+    def explicit_origins_only(cls, origins: list[str]) -> list[str]:
         from urllib.parse import urlsplit
 
         for origin in origins:
             parsed = urlsplit(origin)
             if (
                 parsed.scheme not in {"http", "https"}
-                or parsed.hostname not in {"localhost", "127.0.0.1", "::1"}
+                or not parsed.hostname
+                or (
+                    parsed.scheme == "http"
+                    and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}
+                )
+                or any(character in origin for character in "*\\?#")
+                or any(
+                    character.isspace() or ord(character) < 32 or ord(character) == 127
+                    for character in origin
+                )
                 or parsed.path
-                or parsed.query
-                or parsed.fragment
-                or parsed.username
-                or parsed.password
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.netloc.endswith(":")
+                or parsed.port == 0
             ):
-                raise ValueError("CORS origins must be explicit local HTTP origins")
+                raise ValueError("CORS origins must be explicit HTTPS or local HTTP origins")
         return origins
 
     @model_validator(mode="after")
